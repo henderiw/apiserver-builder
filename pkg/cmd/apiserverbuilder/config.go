@@ -1,6 +1,7 @@
 package apiserverbuilder
 
 import (
+	"context"
 	"net/url"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,7 +18,7 @@ import (
 	"sigs.k8s.io/apiserver-runtime/pkg/builder/resource/resourcestrategy"
 )
 
-type StorageProvider func(s *runtime.Scheme, g genericregistry.RESTOptionsGetter) (rest.Storage, error)
+type StorageProvider func(ctx context.Context, s *runtime.Scheme, g genericregistry.RESTOptionsGetter) (rest.Storage, error)
 
 var (
 	// Scheme defines methods for serializing and deserializing API objects.
@@ -92,7 +93,7 @@ func (cfg *Config) Complete() CompletedConfig {
 }
 
 // New returns a new instance of Server from the given config.
-func (c completedConfig) New() (*Server, error) {
+func (c completedConfig) New(ctx context.Context,) (*Server, error) {
 	genericServer, err := c.GenericConfig.New(c.ExtraConfig.ServerName, server.NewEmptyDelegate())
 	if err != nil {
 		return nil, err
@@ -106,7 +107,7 @@ func (c completedConfig) New() (*Server, error) {
 	}
 
 	// Add new APIs through inserting into APIs
-	apiGroups, err := BuildAPIGroupInfos(Scheme, c.GenericConfig.RESTOptionsGetter)
+	apiGroups, err := BuildAPIGroupInfos(ctx, Scheme, c.GenericConfig.RESTOptionsGetter)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +120,7 @@ func (c completedConfig) New() (*Server, error) {
 	return s, nil
 }
 
-func BuildAPIGroupInfos(s *runtime.Scheme, g genericregistry.RESTOptionsGetter) ([]*server.APIGroupInfo, error) {
+func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistry.RESTOptionsGetter) ([]*server.APIGroupInfo, error) {
 	resourcesByGroupVersion := make(map[schema.GroupVersion]sets.String)
 	groups := sets.NewString()
 	for gvr := range APIs {
@@ -137,7 +138,7 @@ func BuildAPIGroupInfos(s *runtime.Scheme, g genericregistry.RESTOptionsGetter) 
 				if _, found := apis[gvr.Version]; !found {
 					apis[gvr.Version] = map[string]rest.Storage{}
 				}
-				storage, err := storageProviderFunc(s, g)
+				storage, err := storageProviderFunc(ctx, s, g)
 				if err != nil {
 					return nil, err
 				}

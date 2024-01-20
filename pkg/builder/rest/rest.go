@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"context"
 	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,7 +17,7 @@ import (
 
 // New returns a new etcd backed request handler for the resource.
 func New(obj resource.Object) ResourceHandlerProvider {
-	return func(scheme *runtime.Scheme, optsGetter generic.RESTOptionsGetter) (rest.Storage, error) {
+	return func(ctx context.Context, scheme *runtime.Scheme, optsGetter generic.RESTOptionsGetter) (rest.Storage, error) {
 		gvr := obj.GetGroupVersionResource()
 		s := &DefaultStrategy{
 			Object:         obj,
@@ -29,7 +30,7 @@ func New(obj resource.Object) ResourceHandlerProvider {
 
 // NewWithStrategy returns a new etcd backed request handler using the provided Strategy.
 func NewWithStrategy(obj resource.Object, s Strategy) ResourceHandlerProvider {
-	return func(scheme *runtime.Scheme, optsGetter generic.RESTOptionsGetter) (rest.Storage, error) {
+	return func(ctx context.Context, scheme *runtime.Scheme, optsGetter generic.RESTOptionsGetter) (rest.Storage, error) {
 		gvr := obj.GetGroupVersionResource()
 		return newStore(scheme, obj.New, obj.NewList, gvr, s, optsGetter, nil)
 	}
@@ -40,7 +41,7 @@ type StoreFn func(*runtime.Scheme, *genericregistry.Store, *generic.StoreOptions
 
 // NewWithFn returns a new etcd backed request handler, applying the StoreFn to the Store.
 func NewWithFn(obj resource.Object, fn StoreFn) ResourceHandlerProvider {
-	return func(scheme *runtime.Scheme, optsGetter generic.RESTOptionsGetter) (rest.Storage, error) {
+	return func(ctx context.Context, scheme *runtime.Scheme, optsGetter generic.RESTOptionsGetter) (rest.Storage, error) {
 		gvr := obj.GetGroupVersionResource()
 		s := &DefaultStrategy{
 			Object:         obj,

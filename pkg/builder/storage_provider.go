@@ -7,19 +7,19 @@ import (
 	"strings"
 	"sync"
 
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"sigs.k8s.io/apiserver-runtime/pkg/builder/resource/util"
 	"github.com/henderiw/apiserver-builder/pkg/builder/rest"
+	"github.com/henderiw/logger/log"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/registry/generic/registry"
 	registryrest "k8s.io/apiserver/pkg/registry/rest"
-	"k8s.io/klog"
 	"sigs.k8s.io/apiserver-runtime/pkg/builder/resource"
+	"sigs.k8s.io/apiserver-runtime/pkg/builder/resource/util"
 	contextutil "sigs.k8s.io/apiserver-runtime/pkg/util/context"
 )
 
@@ -31,9 +31,9 @@ type singletonProvider struct {
 	err      error
 }
 
-func (s *singletonProvider) Get(scheme *runtime.Scheme, optsGetter generic.RESTOptionsGetter) (registryrest.Storage, error) {
+func (s *singletonProvider) Get(ctx context.Context, scheme *runtime.Scheme, optsGetter generic.RESTOptionsGetter) (registryrest.Storage, error) {
 	s.Once.Do(func() {
-		s.storage, s.err = s.Provider(scheme, optsGetter)
+		s.storage, s.err = s.Provider(ctx, scheme, optsGetter)
 	})
 	return s.storage, s.err
 }
@@ -44,15 +44,16 @@ type subResourceStorageProvider struct {
 	subResourceStorageProvider rest.ResourceHandlerProvider
 }
 
-func (s *subResourceStorageProvider) Get(scheme *runtime.Scheme, optsGetter generic.RESTOptionsGetter) (registryrest.Storage, error) {
-	parentStorage, err := s.parentStorageProvider(scheme, optsGetter)
+func (s *subResourceStorageProvider) Get(ctx context.Context, scheme *runtime.Scheme, optsGetter generic.RESTOptionsGetter) (registryrest.Storage, error) {
+	log := log.FromContext(ctx)
+	parentStorage, err := s.parentStorageProvider(ctx, scheme, optsGetter)
 	if err != nil {
 		return nil, err
 	}
 
 	var subResourceStorage registryrest.Storage
 	if s.subResourceStorageProvider != nil {
-		subResourceStorage, err = s.subResourceStorageProvider(scheme, optsGetter)
+		subResourceStorage, err = s.subResourceStorageProvider(ctx, scheme, optsGetter)
 		if err != nil {
 			return nil, err
 		}
@@ -112,12 +113,14 @@ func (s *subResourceStorageProvider) Get(scheme *runtime.Scheme, optsGetter gene
 				subResourceUpdater:     getterUpdaterSubResource,
 			}, nil
 		}
-		klog.Infof("Parent storageProvider for %v/%v/%v must implement rest.StandardStorage",
-			s.subResourceGVR.Group, s.subResourceGVR.Version, s.subResourceGVR.Resource)
+		log.Info("Parent storageProvider must implement rest.StandardStorage",
+			"group", s.subResourceGVR.Group,
+			"version", s.subResourceGVR.Version,
+			"resource", s.subResourceGVR.Resource)
 	}
 
 	// use the subresource storage directly
-	return s.subResourceStorageProvider(scheme, optsGetter)
+	return s.subResourceStorageProvider(ctx, scheme, optsGetter)
 }
 
 func createStatusSubResourceStorage(parentStorage registryrest.StandardStorage) (registryrest.Storage, error) {

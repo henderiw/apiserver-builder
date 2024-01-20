@@ -3,6 +3,7 @@ module github.com/henderiw/apiserver-builder
 go 1.21.4
 
 require (
+	github.com/henderiw/logger v0.0.0-20230911123436-8655829b1abe
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
@@ -10,7 +11,6 @@ require (
 	k8s.io/apiextensions-apiserver v0.29.1
 	k8s.io/apimachinery v0.29.1
 	k8s.io/apiserver v0.29.1
-	k8s.io/klog v1.0.0
 	k8s.io/kube-openapi v0.0.0-20231010175941-2dd684a91f00
 	sigs.k8s.io/apiserver-runtime v1.1.1
 )

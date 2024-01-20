@@ -1,9 +1,11 @@
 package builder
 
 import (
+	"context"
+
 	"github.com/henderiw/apiserver-builder/pkg/cmd/apiserverbuilder"
+	"github.com/henderiw/logger/log"
 	"github.com/spf13/pflag"
-	"k8s.io/klog"
 )
 
 var enablesLocalStandaloneDebugging bool
@@ -12,12 +14,13 @@ var enablesLocalStandaloneDebugging bool
 // locally without involving a complete kubernetes cluster. A flag named "--standalone-debug-mode" will
 // also be added the binary which forcily requires "--bind-address" to be "127.0.0.1" in order to avoid
 // security issues.
-func (a *Server) WithLocalDebugExtension() *Server {
+func (a *Server) WithLocalDebugExtension(ctx context.Context) *Server {
+	log := log.FromContext(ctx)
 	apiserverbuilder.ServerOptionsFns = append(apiserverbuilder.ServerOptionsFns, func(options *ServerOptions) *ServerOptions {
 		secureBindingAddr := options.RecommendedOptions.SecureServing.BindAddress.String()
 		if enablesLocalStandaloneDebugging {
 			if secureBindingAddr != "127.0.0.1" {
-				klog.Fatal(`--bind-address must be "127.0.0.1" if --standalone-debug-mode is set`)
+				log.Error(`--bind-address must be "127.0.0.1" if --standalone-debug-mode is set`)
 			}
 			options.RecommendedOptions.Authorization = nil
 			options.RecommendedOptions.CoreAPI = nil

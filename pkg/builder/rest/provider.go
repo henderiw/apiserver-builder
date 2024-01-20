@@ -20,7 +20,7 @@ type StaticHandlerProvider struct { // TODO: privatize
 }
 
 // Get returns itself as the handler
-func (p StaticHandlerProvider) Get(s *runtime.Scheme, g generic.RESTOptionsGetter) (rest.Storage, error) {
+func (p StaticHandlerProvider) Get(ctx context.Context, s *runtime.Scheme, g generic.RESTOptionsGetter) (rest.Storage, error) {
 	return p.Storage, nil
 }
 
@@ -32,8 +32,8 @@ type ParentStaticHandlerProvider struct {
 }
 
 // Get returns itself as the handler
-func (p ParentStaticHandlerProvider) Get(s *runtime.Scheme, g generic.RESTOptionsGetter) (rest.Storage, error) {
-	parentStorage, err := p.ParentProvider(s, g)
+func (p ParentStaticHandlerProvider) Get(ctx context.Context, s *runtime.Scheme, g generic.RESTOptionsGetter) (rest.Storage, error) {
+	parentStorage, err := p.ParentProvider(ctx, s, g)
 	if err != nil {
 		return nil, err
 	}

@@ -89,7 +89,7 @@ func (o ServerOptions) RunServer(ctx context.Context, serverName string) error {
 		return err
 	}
 
-	server, err := config.Complete().New()
+	server, err := config.Complete().New(ctx)
 	if err != nil {
 		return err
 	}
