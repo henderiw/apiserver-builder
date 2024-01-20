@@ -8,7 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/registry/rest"
-	contextutil "sigs.k8s.io/apiserver-runtime/pkg/util/context"
+	contextutil "github.com/henderiw/apiserver-builder/pkg/util/context"
 )
 
 // ResourceHandlerProvider provides a request handler for a resource

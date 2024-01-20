@@ -25,7 +25,7 @@ type ServerOptions struct {
 // NewServerOptions returns a new ServerOptions
 func NewServerOptions(out, errOut io.Writer, versions ...schema.GroupVersion) *ServerOptions {
 	Codecs = serializer.NewCodecFactory(Scheme)
-	// change: apiserver-runtime
+
 	o := &ServerOptions{
 		RecommendedOptions: genericoptions.NewRecommendedOptions(
 			EtcdPath,

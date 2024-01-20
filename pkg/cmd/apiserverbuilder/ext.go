@@ -1,6 +1,8 @@
 package apiserverbuilder
 
 import (
+	"fmt"
+
 	"github.com/spf13/pflag"
 	"k8s.io/apiserver/pkg/server"
 )
@@ -16,6 +18,7 @@ var (
 func ApplyServerOptionsFns(in *ServerOptions) *ServerOptions {
 	for i := range ServerOptionsFns {
 		in = ServerOptionsFns[i](in)
+		fmt.Println("ApplyServerOptionsFns", in.RecommendedOptions.Etcd)
 	}
 	return in
 }

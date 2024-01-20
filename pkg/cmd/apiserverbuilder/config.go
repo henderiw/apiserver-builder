@@ -14,8 +14,8 @@ import (
 	genericregistry "k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/apiserver/pkg/server"
-	"sigs.k8s.io/apiserver-runtime/pkg/builder/resource"
-	"sigs.k8s.io/apiserver-runtime/pkg/builder/resource/resourcestrategy"
+	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
+	"github.com/henderiw/apiserver-builder/pkg/builder/resource/resourcestrategy"
 )
 
 type StorageProvider func(ctx context.Context, s *runtime.Scheme, g genericregistry.RESTOptionsGetter) (rest.Storage, error)
@@ -99,7 +99,6 @@ func (c completedConfig) New(ctx context.Context,) (*Server, error) {
 		return nil, err
 	}
 
-	// change: apiserver-runtime
 	genericServer = ApplyGenericAPIServerFns(genericServer)
 
 	s := &Server{

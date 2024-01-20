@@ -4,13 +4,13 @@ import (
 	"context"
 	"strings"
 
+	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
+	"github.com/henderiw/apiserver-builder/pkg/builder/resource/resourcerest"
 	"github.com/henderiw/apiserver-builder/pkg/builder/rest"
 	"github.com/henderiw/apiserver-builder/pkg/cmd/apiserverbuilder"
 	"github.com/henderiw/logger/log"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	regsitryrest "k8s.io/apiserver/pkg/registry/rest"
-	"sigs.k8s.io/apiserver-runtime/pkg/builder/resource"
-	"sigs.k8s.io/apiserver-runtime/pkg/builder/resource/resourcerest"
 )
 
 // WithResource registers the resource with the apiserver.
@@ -22,7 +22,7 @@ import (
 // If no versions of this GroupResource have already been registered and the object does NOT implement the rest
 // interfaces, then a new etcd backed storage will be created for the object and used as the handler.
 // The storage will use a DefaultStrategy, which delegates functions to the object if the object implements
-// interfaces defined in the "apiserver-runtime/pkg/builder/rest" package.  Otherwise it will provide a default
+// interfaces defined in the rest package.  Otherwise it will provide a default
 // behavior.
 //
 // WithResource will automatically register the "status" subresource if the object implements the

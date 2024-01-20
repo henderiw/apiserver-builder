@@ -12,7 +12,7 @@ import (
 	"k8s.io/apiserver/pkg/registry/generic"
 	genericregistry "k8s.io/apiserver/pkg/registry/generic/registry"
 	"k8s.io/apiserver/pkg/registry/rest"
-	"sigs.k8s.io/apiserver-runtime/pkg/builder/resource"
+	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 )
 
 // New returns a new etcd backed request handler for the resource.

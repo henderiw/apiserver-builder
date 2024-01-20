@@ -18,9 +18,9 @@ import (
 	"k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/registry/generic/registry"
 	registryrest "k8s.io/apiserver/pkg/registry/rest"
-	"sigs.k8s.io/apiserver-runtime/pkg/builder/resource"
-	"sigs.k8s.io/apiserver-runtime/pkg/builder/resource/util"
-	contextutil "sigs.k8s.io/apiserver-runtime/pkg/util/context"
+	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
+	"github.com/henderiw/apiserver-builder/pkg/builder/resource/util"
+	contextutil "github.com/henderiw/apiserver-builder/pkg/util/context"
 )
 
 // singletonProvider ensures different versions of the same resource share storage

@@ -20,7 +20,7 @@ import (
 	"net/url"
 
 	"k8s.io/apiserver/pkg/registry/rest"
-	"sigs.k8s.io/apiserver-runtime/pkg/builder/resource/resourcerest"
+	"github.com/henderiw/apiserver-builder/pkg/builder/resource/resourcerest"
 )
 
 // SubResource defines interface for registering arbitrary subresource to the parent resource.
