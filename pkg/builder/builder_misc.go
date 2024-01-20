@@ -16,7 +16,7 @@ func (r *Server) WithOpenAPIDefinitions(
 		config.OpenAPIConfig = server.DefaultOpenAPIConfig(defs, openapi.NewDefinitionNamer(apiserver.Scheme))
 		config.OpenAPIConfig.Info.Title = name
 		config.OpenAPIConfig.Info.Version = version
-		config.OpenAPIV3Config = server.DefaultOpenAPIV3Config(defs, openapi.NewDefinitionNamer(apiserver.Scheme))
+		config.OpenAPIV3Config = server.DefaultOpenAPIConfig(defs, openapi.NewDefinitionNamer(apiserver.Scheme))
 		config.OpenAPIV3Config.Info.Title = name
 		config.OpenAPIV3Config.Info.Version = version
 		return config
