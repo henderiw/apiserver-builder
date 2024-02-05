@@ -69,7 +69,7 @@ func (a *Server) WithResource(ctx context.Context, obj resource.Object) *Server 
 }
 
 // WithResourceAndHandler registers a request handler for the resource rather than the default
-// etcd backed storage.
+// etcd backend storage.
 //
 // Note: WithResourceAndHandler should never be called after the GroupResource has already been registered with
 // another version.

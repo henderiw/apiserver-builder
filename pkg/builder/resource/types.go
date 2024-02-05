@@ -51,6 +51,9 @@ type Object interface {
 	// for the API group an alias to this object.
 	// If false, the resource is expected to implement MultiVersionObject interface.
 	IsStorageVersion() bool
+
+	// GetSingularName
+	GetSingularName() string
 }
 
 // ObjectList must be implemented by all resources' list object.
