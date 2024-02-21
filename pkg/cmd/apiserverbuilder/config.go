@@ -112,10 +112,10 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Info("completedConfig apiGroup", len(apiGroups))
-	log.Info("completedConfig apiGroup", apiGroups)
+	log.Info("completedConfig", "length", len(apiGroups))
+	log.Info("completedConfig", "apiGroups", apiGroups)
 	for _, apiGroup := range apiGroups {
-		log.Info("completedConfig apiGroup", apiGroup)
+		log.Info("completedConfig", "apiGroup", apiGroup)
 		if err := s.GenericAPIServer.InstallAPIGroup(apiGroup); err != nil {
 			return nil, err
 		}
