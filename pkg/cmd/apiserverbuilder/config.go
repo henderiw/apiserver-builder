@@ -4,6 +4,9 @@ import (
 	"context"
 	"net/url"
 
+	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
+	"github.com/henderiw/apiserver-builder/pkg/builder/resource/resourcestrategy"
+	"github.com/henderiw/logger/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -14,8 +17,6 @@ import (
 	genericregistry "k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/apiserver/pkg/server"
-	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
-	"github.com/henderiw/apiserver-builder/pkg/builder/resource/resourcestrategy"
 )
 
 type StorageProvider func(ctx context.Context, s *runtime.Scheme, g genericregistry.RESTOptionsGetter) (rest.Storage, error)
@@ -94,6 +95,7 @@ func (cfg *Config) Complete() CompletedConfig {
 
 // New returns a new instance of Server from the given config.
 func (c completedConfig) New(ctx context.Context,) (*Server, error) {
+	log := log.FromContext(ctx)
 	genericServer, err := c.GenericConfig.New(c.ExtraConfig.ServerName, server.NewEmptyDelegate())
 	if err != nil {
 		return nil, err
@@ -111,6 +113,7 @@ func (c completedConfig) New(ctx context.Context,) (*Server, error) {
 		return nil, err
 	}
 	for _, apiGroup := range apiGroups {
+		log.Info("completedCOnfig apiGroup", apiGroup)
 		if err := s.GenericAPIServer.InstallAPIGroup(apiGroup); err != nil {
 			return nil, err
 		}
@@ -120,17 +123,17 @@ func (c completedConfig) New(ctx context.Context,) (*Server, error) {
 }
 
 func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistry.RESTOptionsGetter) ([]*server.APIGroupInfo, error) {
-	resourcesByGroupVersion := make(map[schema.GroupVersion]sets.String)
-	groups := sets.NewString()
+	resourcesByGroupVersion := make(map[schema.GroupVersion]sets.Set[string])
+	groups := sets.New[string]()
 	for gvr := range APIs {
 		groups.Insert(gvr.Group)
 		if resourcesByGroupVersion[gvr.GroupVersion()] == nil {
-			resourcesByGroupVersion[gvr.GroupVersion()] = sets.NewString()
+			resourcesByGroupVersion[gvr.GroupVersion()] = sets.New[string]()
 		}
 		resourcesByGroupVersion[gvr.GroupVersion()].Insert(gvr.Resource)
 	}
 	apiGroups := []*server.APIGroupInfo{}
-	for _, group := range groups.List() {
+	for _, group := range sets.List[string](groups) {
 		apis := map[string]map[string]rest.Storage{}
 		for gvr, storageProviderFunc := range APIs {
 			if gvr.Group == group {
