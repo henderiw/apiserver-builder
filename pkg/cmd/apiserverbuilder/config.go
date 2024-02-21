@@ -7,17 +7,23 @@ import (
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource/resourcestrategy"
 	"github.com/henderiw/logger/log"
+	configopenapi "github.com/sdcio/config-server/apis/generated/openapi"
+	"k8s.io/apiextensions-apiserver/pkg/apiserver"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/version"
 	genericapi "k8s.io/apiserver/pkg/endpoints"
+	"k8s.io/apiserver/pkg/endpoints/openapi"
 	genericregistry "k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/apiserver/pkg/server"
+	openapibuilder3 "k8s.io/kube-openapi/pkg/builder3"
+	openapiutil "k8s.io/kube-openapi/pkg/util"
 )
 
 type StorageProvider func(ctx context.Context, s *runtime.Scheme, g genericregistry.RESTOptionsGetter) (rest.Storage, error)
@@ -118,16 +124,37 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 	for _, apiGroupInfo := range apiGroups {
 		log.Info("completedConfig", "apiGroup", apiGroupInfo)
 		log.Info("completedConfig", "PrioritizedVersions", apiGroupInfo.PrioritizedVersions)
+		resourceNames := make([]string, 0)
 		for _, groupVersion := range apiGroupInfo.PrioritizedVersions {
 			for resource, storage := range apiGroupInfo.VersionedResourcesStorageMap[groupVersion.Version] {
 				kind, err := genericapi.GetResourceKind(groupVersion, storage, apiGroupInfo.Scheme)
 				if err != nil {
 					return nil, err
 				}
+				sampleObject, err := apiGroupInfo.Scheme.New(kind)
+				if err != nil {
+					return nil, err
+				}
+				name := openapiutil.GetCanonicalTypeName(sampleObject)
+				resourceNames = append(resourceNames, name)
+
 				log.Info("completedConfig", "resource", resource)
 				log.Info("completedConfig", "kind", kind)
 			}
 		}
+		defs := configopenapi.GetOpenAPIDefinitions
+		openapiconfig := server.DefaultOpenAPIV3Config(defs, openapi.NewDefinitionNamer(apiserver.Scheme))
+
+		openAPISpec, err := openapibuilder3.BuildOpenAPIDefinitionsForResources(openapiconfig, resourceNames...)
+		if err != nil {
+			return nil, err
+		}
+		typeConverter, err := managedfields.NewTypeConverter(openAPISpec, false)
+		if err != nil {
+			return nil, err
+		}
+		log.Info("completedConfig", "typeConverter", typeConverter)
+
 		if err := s.GenericAPIServer.InstallAPIGroup(apiGroupInfo); err != nil {
 			return nil, err
 		}
