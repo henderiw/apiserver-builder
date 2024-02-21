@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/version"
+	genericapi "k8s.io/apiserver/pkg/endpoints"
 	genericregistry "k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/apiserver/pkg/server"
@@ -114,9 +115,20 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 	}
 	log.Info("completedConfig", "length", len(apiGroups))
 	log.Info("completedConfig", "apiGroups", apiGroups)
-	for _, apiGroup := range apiGroups {
-		log.Info("completedConfig", "apiGroup", apiGroup)
-		if err := s.GenericAPIServer.InstallAPIGroup(apiGroup); err != nil {
+	for _, apiGroupInfo := range apiGroups {
+		log.Info("completedConfig", "apiGroup", apiGroupInfo)
+		log.Info("completedConfig", "PrioritizedVersions", apiGroupInfo.PrioritizedVersions)
+		for _, groupVersion := range apiGroupInfo.PrioritizedVersions {
+			for resource, storage := range apiGroupInfo.VersionedResourcesStorageMap[groupVersion.Version] {
+				kind, err := genericapi.GetResourceKind(groupVersion, storage, apiGroupInfo.Scheme)
+				if err != nil {
+					return nil, err
+				}
+				log.Info("completedConfig", "resource", resource)
+				log.Info("completedConfig", "kind", kind)
+			}
+		}
+		if err := s.GenericAPIServer.InstallAPIGroup(apiGroupInfo); err != nil {
 			return nil, err
 		}
 	}
