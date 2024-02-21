@@ -94,7 +94,7 @@ func (cfg *Config) Complete() CompletedConfig {
 }
 
 // New returns a new instance of Server from the given config.
-func (c completedConfig) New(ctx context.Context,) (*Server, error) {
+func (c completedConfig) New(ctx context.Context) (*Server, error) {
 	log := log.FromContext(ctx)
 	genericServer, err := c.GenericConfig.New(c.ExtraConfig.ServerName, server.NewEmptyDelegate())
 	if err != nil {
@@ -112,8 +112,10 @@ func (c completedConfig) New(ctx context.Context,) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.Info("completedConfig apiGroup", len(apiGroups))
+	log.Info("completedConfig apiGroup", apiGroups)
 	for _, apiGroup := range apiGroups {
-		log.Info("completedCOnfig apiGroup", apiGroup)
+		log.Info("completedConfig apiGroup", apiGroup)
 		if err := s.GenericAPIServer.InstallAPIGroup(apiGroup); err != nil {
 			return nil, err
 		}
