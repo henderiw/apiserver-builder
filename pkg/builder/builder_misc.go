@@ -2,7 +2,6 @@ package builder
 
 import (
 	"github.com/henderiw/apiserver-builder/pkg/cmd/apiserverbuilder"
-	"k8s.io/apiextensions-apiserver/pkg/apiserver"
 	"k8s.io/apiserver/pkg/endpoints/openapi"
 	"k8s.io/apiserver/pkg/server"
 	openapicommon "k8s.io/kube-openapi/pkg/common"
@@ -13,10 +12,10 @@ func (r *Server) WithOpenAPIDefinitions(
 	defs openapicommon.GetOpenAPIDefinitions) *Server {
 	// set both openAPI definitions
 	apiserverbuilder.RecommendedConfigFns = append(apiserverbuilder.RecommendedConfigFns, func(config *server.RecommendedConfig) *server.RecommendedConfig {
-		config.OpenAPIConfig = server.DefaultOpenAPIConfig(defs, openapi.NewDefinitionNamer(apiserver.Scheme))
+		config.OpenAPIConfig = server.DefaultOpenAPIConfig(defs, openapi.NewDefinitionNamer(apiserverbuilder.Scheme))
 		config.OpenAPIConfig.Info.Title = name
 		config.OpenAPIConfig.Info.Version = version
-		config.OpenAPIV3Config = server.DefaultOpenAPIV3Config(defs, openapi.NewDefinitionNamer(apiserver.Scheme))
+		config.OpenAPIV3Config = server.DefaultOpenAPIV3Config(defs, openapi.NewDefinitionNamer(apiserverbuilder.Scheme))
 		config.OpenAPIV3Config.Info.Title = name
 		config.OpenAPIV3Config.Info.Version = version
 		return config
