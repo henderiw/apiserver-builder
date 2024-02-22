@@ -2,34 +2,22 @@ package apiserverbuilder
 
 import (
 	"context"
-	"fmt"
 	"net/url"
-	"reflect"
-	"sort"
-	"strings"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource/resourcestrategy"
-	"github.com/henderiw/logger/log"
-	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
-	configopenapi "github.com/sdcio/config-server/apis/generated/openapi"
+
 	//"k8s.io/apiextensions-apiserver/pkg/apiserver"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
-	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/version"
-	genericapi "k8s.io/apiserver/pkg/endpoints"
-	"k8s.io/apiserver/pkg/endpoints/openapi"
 	genericregistry "k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/apiserver/pkg/server"
-	openapibuilder3 "k8s.io/kube-openapi/pkg/builder3"
-	openapiutil "k8s.io/kube-openapi/pkg/util"
 )
 
 type StorageProvider func(ctx context.Context, s *runtime.Scheme, g genericregistry.RESTOptionsGetter) (rest.Storage, error)
@@ -108,7 +96,7 @@ func (cfg *Config) Complete() CompletedConfig {
 
 // New returns a new instance of Server from the given config.
 func (c completedConfig) New(ctx context.Context) (*Server, error) {
-	log := log.FromContext(ctx)
+	//log := log.FromContext(ctx)
 	genericServer, err := c.GenericConfig.New(c.ExtraConfig.ServerName, server.NewEmptyDelegate())
 	if err != nil {
 		return nil, err
@@ -125,131 +113,13 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Info("completedConfig", "length", len(apiGroups))
-	log.Info("completedConfig", "apiGroups", apiGroups)
 	for _, apiGroupInfo := range apiGroups {
-		log.Info("completedConfig", "apiGroup", apiGroupInfo)
-		log.Info("completedConfig", "PrioritizedVersions", apiGroupInfo.PrioritizedVersions)
-		resourceNames := make([]string, 0)
-		for _, groupVersion := range apiGroupInfo.PrioritizedVersions {
-			for resource, storage := range apiGroupInfo.VersionedResourcesStorageMap[groupVersion.Version] {
-				kind, err := genericapi.GetResourceKind(groupVersion, storage, apiGroupInfo.Scheme)
-				if err != nil {
-					return nil, err
-				}
-				sampleObject, err := apiGroupInfo.Scheme.New(kind)
-				if err != nil {
-					return nil, err
-				}
-				name := openapiutil.GetCanonicalTypeName(sampleObject)
-				resourceNames = append(resourceNames, name)
-
-				log.Info("completedConfig", "resource", resource)
-				log.Info("completedConfig", "kind", kind)
-			}
-		}
-		defs := configopenapi.GetOpenAPIDefinitions
-		openapiconfig := server.DefaultOpenAPIV3Config(defs, openapi.NewDefinitionNamer(Scheme))
-
-		ret := &DefinitionNamer{
-			typeGroupVersionKinds: map[string]groupVersionKinds{},
-		}
-		schema := Scheme
-		for gvk, rtype := range schema.AllKnownTypes() {
-			log.Info("completedConfig", "gvk", gvk, "rtype", rtype.Name())
-			newGVK := gvkConvert(gvk)
-			exists := false
-			for _, existingGVK := range ret.typeGroupVersionKinds[typeName(rtype)] {
-				if newGVK == existingGVK {
-					exists = true
-					break
-				}
-			}
-			if !exists {
-				ret.typeGroupVersionKinds[typeName(rtype)] = append(ret.typeGroupVersionKinds[typeName(rtype)], newGVK)
-			}
-		}
-
-		for _, gvk := range ret.typeGroupVersionKinds {
-			sort.Sort(gvk)
-		}
-		log.Info("completedConfig", "ret", ret.typeGroupVersionKinds)
-
-		openAPISpec, err := openapibuilder3.BuildOpenAPIDefinitionsForResources(openapiconfig, resourceNames...)
-		if err != nil {
-			return nil, err
-		}
-		for k, v := range openAPISpec {
-			log.Info("completedConfig", "openAPISpec key", k)
-			log.Info("completedConfig", "openAPISpec spec", v)
-		}
-		typeConverter, err := managedfields.NewTypeConverter(openAPISpec, false)
-		if err != nil {
-			return nil, err
-		}
-		obj := configv1alpha1.BuildConfig(metav1.ObjectMeta{Name: "test", Namespace: "test"}, configv1alpha1.ConfigSpec{}, configv1alpha1.ConfigStatus{})
-		tobj, err := typeConverter.ObjectToTyped(obj)
-		log.Info("completedConfig", "typedValue", tobj, "error", err)
-
 		if err := s.GenericAPIServer.InstallAPIGroup(apiGroupInfo); err != nil {
 			return nil, err
 		}
 	}
 
 	return s, nil
-}
-
-// DefinitionNamer is the type to customize OpenAPI definition name.
-type DefinitionNamer struct {
-	typeGroupVersionKinds map[string]groupVersionKinds
-}
-
-type groupVersionKinds []v1.GroupVersionKind
-
-func (s groupVersionKinds) Len() int {
-	return len(s)
-}
-
-func (s groupVersionKinds) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
-}
-
-func (s groupVersionKinds) Less(i, j int) bool {
-	if s[i].Group == s[j].Group {
-		if s[i].Version == s[j].Version {
-			return s[i].Kind < s[j].Kind
-		}
-		return s[i].Version < s[j].Version
-	}
-	return s[i].Group < s[j].Group
-}
-
-func (s groupVersionKinds) JSON() []interface{} {
-	j := []interface{}{}
-	for _, gvk := range s {
-		j = append(j, map[string]interface{}{
-			"group":   gvk.Group,
-			"version": gvk.Version,
-			"kind":    gvk.Kind,
-		})
-	}
-	return j
-}
-
-func gvkConvert(gvk schema.GroupVersionKind) v1.GroupVersionKind {
-	return v1.GroupVersionKind{
-		Group:   gvk.Group,
-		Version: gvk.Version,
-		Kind:    gvk.Kind,
-	}
-}
-
-func typeName(t reflect.Type) string {
-	path := t.PkgPath()
-	if strings.Contains(path, "/vendor/") {
-		path = path[strings.Index(path, "/vendor/")+len("/vendor/"):]
-	}
-	return fmt.Sprintf("%s.%s", path, t.Name())
 }
 
 func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistry.RESTOptionsGetter) ([]*server.APIGroupInfo, error) {
