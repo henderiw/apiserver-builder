@@ -13,7 +13,7 @@ import (
 	"github.com/henderiw/logger/log"
 	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	configopenapi "github.com/sdcio/config-server/apis/generated/openapi"
-	"k8s.io/apiextensions-apiserver/pkg/apiserver"
+	//"k8s.io/apiextensions-apiserver/pkg/apiserver"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/conversion"
@@ -149,14 +149,14 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 			}
 		}
 		defs := configopenapi.GetOpenAPIDefinitions
-		openapiconfig := server.DefaultOpenAPIV3Config(defs, openapi.NewDefinitionNamer(apiserver.Scheme))
+		openapiconfig := server.DefaultOpenAPIV3Config(defs, openapi.NewDefinitionNamer(Scheme))
 
 		ret := &DefinitionNamer{
 			typeGroupVersionKinds: map[string]groupVersionKinds{},
 		}
-		schema := apiserver.Scheme
+		schema := Scheme
 		for gvk, rtype := range schema.AllKnownTypes() {
-			log.Info("completedConfig", "gvk", gvk, "rtype", rtype)
+			log.Info("completedConfig", "gvk", gvk, "rtype", rtype.Name())
 			newGVK := gvkConvert(gvk)
 			exists := false
 			for _, existingGVK := range ret.typeGroupVersionKinds[typeName(rtype)] {
