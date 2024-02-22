@@ -2,14 +2,20 @@ package apiserverbuilder
 
 import (
 	"context"
+	"fmt"
 	"net/url"
+	"reflect"
+	"sort"
+	"strings"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource/resourcestrategy"
 	"github.com/henderiw/logger/log"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 	configopenapi "github.com/sdcio/config-server/apis/generated/openapi"
 	"k8s.io/apiextensions-apiserver/pkg/apiserver"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -24,7 +30,6 @@ import (
 	"k8s.io/apiserver/pkg/server"
 	openapibuilder3 "k8s.io/kube-openapi/pkg/builder3"
 	openapiutil "k8s.io/kube-openapi/pkg/util"
-	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 )
 
 type StorageProvider func(ctx context.Context, s *runtime.Scheme, g genericregistry.RESTOptionsGetter) (rest.Storage, error)
@@ -146,6 +151,30 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 		defs := configopenapi.GetOpenAPIDefinitions
 		openapiconfig := server.DefaultOpenAPIV3Config(defs, openapi.NewDefinitionNamer(apiserver.Scheme))
 
+		ret := &DefinitionNamer{
+			typeGroupVersionKinds: map[string]groupVersionKinds{},
+		}
+		schema := apiserver.Scheme
+		for gvk, rtype := range schema.AllKnownTypes() {
+			log.Info("completedConfig", "gvk", gvk, "rtype", rtype)
+			newGVK := gvkConvert(gvk)
+			exists := false
+			for _, existingGVK := range ret.typeGroupVersionKinds[typeName(rtype)] {
+				if newGVK == existingGVK {
+					exists = true
+					break
+				}
+			}
+			if !exists {
+				ret.typeGroupVersionKinds[typeName(rtype)] = append(ret.typeGroupVersionKinds[typeName(rtype)], newGVK)
+			}
+		}
+
+		for _, gvk := range ret.typeGroupVersionKinds {
+			sort.Sort(gvk)
+		}
+		log.Info("completedConfig", "ret", ret.typeGroupVersionKinds)
+
 		openAPISpec, err := openapibuilder3.BuildOpenAPIDefinitionsForResources(openapiconfig, resourceNames...)
 		if err != nil {
 			return nil, err
@@ -168,6 +197,59 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 	}
 
 	return s, nil
+}
+
+// DefinitionNamer is the type to customize OpenAPI definition name.
+type DefinitionNamer struct {
+	typeGroupVersionKinds map[string]groupVersionKinds
+}
+
+type groupVersionKinds []v1.GroupVersionKind
+
+func (s groupVersionKinds) Len() int {
+	return len(s)
+}
+
+func (s groupVersionKinds) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s groupVersionKinds) Less(i, j int) bool {
+	if s[i].Group == s[j].Group {
+		if s[i].Version == s[j].Version {
+			return s[i].Kind < s[j].Kind
+		}
+		return s[i].Version < s[j].Version
+	}
+	return s[i].Group < s[j].Group
+}
+
+func (s groupVersionKinds) JSON() []interface{} {
+	j := []interface{}{}
+	for _, gvk := range s {
+		j = append(j, map[string]interface{}{
+			"group":   gvk.Group,
+			"version": gvk.Version,
+			"kind":    gvk.Kind,
+		})
+	}
+	return j
+}
+
+func gvkConvert(gvk schema.GroupVersionKind) v1.GroupVersionKind {
+	return v1.GroupVersionKind{
+		Group:   gvk.Group,
+		Version: gvk.Version,
+		Kind:    gvk.Kind,
+	}
+}
+
+func typeName(t reflect.Type) string {
+	path := t.PkgPath()
+	if strings.Contains(path, "/vendor/") {
+		path = path[strings.Index(path, "/vendor/")+len("/vendor/"):]
+	}
+	return fmt.Sprintf("%s.%s", path, t.Name())
 }
 
 func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistry.RESTOptionsGetter) ([]*server.APIGroupInfo, error) {
