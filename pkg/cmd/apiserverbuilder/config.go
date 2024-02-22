@@ -154,7 +154,7 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 		if err != nil {
 			return nil, err
 		}
-		obj := &configv1alpha1.Config{}
+		obj := configv1alpha1.BuildConfig(metav1.ObjectMeta{Name: "test", Namespace: "test"}, configv1alpha1.ConfigSpec{}, configv1alpha1.ConfigStatus{})
 		tobj, err := typeConverter.ObjectToTyped(obj)
 		log.Info("completedConfig", "typedValue", tobj, "error", err)
 
