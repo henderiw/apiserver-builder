@@ -24,6 +24,7 @@ import (
 	"k8s.io/apiserver/pkg/server"
 	openapibuilder3 "k8s.io/kube-openapi/pkg/builder3"
 	openapiutil "k8s.io/kube-openapi/pkg/util"
+	configv1alpha1 "github.com/sdcio/config-server/apis/config/v1alpha1"
 )
 
 type StorageProvider func(ctx context.Context, s *runtime.Scheme, g genericregistry.RESTOptionsGetter) (rest.Storage, error)
@@ -153,7 +154,9 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 		if err != nil {
 			return nil, err
 		}
-		log.Info("completedConfig", "typeConverter", typeConverter)
+		obj := &configv1alpha1.Config{}
+		tobj, err := typeConverter.ObjectToTyped(obj)
+		log.Info("completedConfig", "typedValue", tobj, "error", err)
 
 		if err := s.GenericAPIServer.InstallAPIGroup(apiGroupInfo); err != nil {
 			return nil, err
