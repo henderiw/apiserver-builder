@@ -150,6 +150,10 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 		if err != nil {
 			return nil, err
 		}
+		for k, v := range openAPISpec {
+			log.Info("completedConfig", "openAPISpec key", k)
+			log.Info("completedConfig", "openAPISpec spec", v)
+		}
 		typeConverter, err := managedfields.NewTypeConverter(openAPISpec, false)
 		if err != nil {
 			return nil, err
