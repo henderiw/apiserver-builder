@@ -100,6 +100,8 @@ github.com/grpc-ecosystem/grpc-gateway v1.16.0 h1:gmcG1KaJ57LophUzW0Hy8NmPhnMZb4
 github.com/grpc-ecosystem/grpc-gateway v1.16.0/go.mod h1:BDjrQk3hbvj6Nolgz8mAMFbcEtjT1g+wF4CSlocrBnw=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0 h1:YBftPWNWd4WwGqtY2yeZL2ef8rHAxPBD8KFhJpmcqms=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0/go.mod h1:YN5jB8ie0yfIUg6VvR9Kz84aCaG7AsGZnLjhHbUqwPg=
+github.com/henderiw/apiserver-store v0.0.0-20240223013812-a4101101019f h1:t3UEvUpSreI6R47heRSP1GQxqDEO+cZaIidtiNmelvA=
+github.com/henderiw/apiserver-store v0.0.0-20240223013812-a4101101019f/go.mod h1:ymfcsQIkGBgOG+YZkWHZQYn6JH0QfUmRwzGTGScP540=
 github.com/henderiw/logger v0.0.0-20230911123436-8655829b1abe h1:+R53KH7fW+pmqlfSYVTCGPn8pj6gqBGcQ0nq7L1h8+g=
 github.com/henderiw/logger v0.0.0-20230911123436-8655829b1abe/go.mod h1:KNMXpSG8v0BAfIh5rZL4hgow3pBWNbkmmb28x9C5s+Y=
 github.com/imdario/mergo v0.3.16 h1:wwQJbIsHYGMUyLSPrEq1CT16AhnhNJQ51+4fdHUnCl4=

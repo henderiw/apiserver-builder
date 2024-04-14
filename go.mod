@@ -15,6 +15,7 @@ replace k8s.io/apiserver => k8s.io/apiserver v0.28.6
 replace k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20230717233707-2695361300d9
 
 require (
+	github.com/henderiw/apiserver-store v0.0.0-20240223013812-a4101101019f
 	github.com/henderiw/logger v0.0.0-20230911123436-8655829b1abe
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5

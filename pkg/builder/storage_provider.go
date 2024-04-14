@@ -14,13 +14,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apiserver/pkg/registry/generic"
-	"k8s.io/apiserver/pkg/registry/generic/registry"
-	registryrest "k8s.io/apiserver/pkg/registry/rest"
+
+	//"k8s.io/apiserver/pkg/registry/generic/registry"
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource/util"
 	contextutil "github.com/henderiw/apiserver-builder/pkg/util/context"
+	"github.com/henderiw/apiserver-store/pkg/generic/registry"
+	registryrest "k8s.io/apiserver/pkg/registry/rest"
 )
 
 // singletonProvider ensures different versions of the same resource share storage
@@ -143,16 +146,16 @@ type statusSubResourceStorage struct {
 var _ registryrest.Getter = &statusSubResourceStorage{}
 var _ registryrest.Updater = &statusSubResourceStorage{}
 
-func (s *statusSubResourceStorage) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
-	return s.store.Get(ctx, name, options)
+func (r *statusSubResourceStorage) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
+	return r.store.Get(ctx, name, options)
 }
 
-func (s *statusSubResourceStorage) New() runtime.Object {
-	return s.store.New()
+func (r *statusSubResourceStorage) New() runtime.Object {
+	return r.store.New()
 }
 
-func (s *statusSubResourceStorage) Destroy() {
-	s.store.Destroy()
+func (r *statusSubResourceStorage) Destroy() {
+	r.store.Destroy()
 }
 
 func (s *statusSubResourceStorage) Update(ctx context.Context,
@@ -172,8 +175,10 @@ type statusSubResourceStrategy struct {
 	registryrest.RESTUpdateStrategy
 }
 
+func (r *statusSubResourceStrategy) BeginUpdate(ctx context.Context) error { return nil }
+
 // PrepareForUpdate calls the PrepareForUpdate function on obj if supported, otherwise does nothing.
-func (s *statusSubResourceStrategy) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
+func (r *statusSubResourceStrategy) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
 	// should panic/fail-fast upon casting failure
 	statusObj := obj.(resource.ObjectWithStatusSubResource)
 	statusOld := old.(resource.ObjectWithStatusSubResource)
@@ -182,6 +187,10 @@ func (s *statusSubResourceStrategy) PrepareForUpdate(ctx context.Context, obj, o
 	if err := util.DeepCopy(statusOld, statusObj); err != nil {
 		utilruntime.HandleError(err)
 	}
+}
+
+func (r *statusSubResourceStrategy) Update(ctx context.Context, key types.NamespacedName, obj, old runtime.Object, dryrun bool) (runtime.Object, error) {
+	return r.Update(ctx, key, obj, old, dryrun)
 }
 
 // common subresource storage
