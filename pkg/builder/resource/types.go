@@ -54,6 +54,12 @@ type Object interface {
 
 	// GetSingularName
 	GetSingularName() string
+
+	// GetShortNames
+	GetShortNames() []string
+
+	// GetCategories
+	GetCategories() []string
 }
 
 // ObjectList must be implemented by all resources' list object.
