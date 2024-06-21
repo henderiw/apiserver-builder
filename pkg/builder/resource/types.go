@@ -60,6 +60,9 @@ type Object interface {
 
 	// GetCategories
 	GetCategories() []string
+
+	// IsNamespaceScoped
+	IsNamespaceScoped() bool
 }
 
 // ObjectList must be implemented by all resources' list object.
