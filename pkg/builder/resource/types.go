@@ -63,6 +63,8 @@ type Object interface {
 
 	// NamespaceScoped
 	NamespaceScoped() bool
+
+	TableConvertor() func(gr schema.GroupResource) rest.TableConvertor
 }
 
 // ObjectList must be implemented by all resources' list object.
