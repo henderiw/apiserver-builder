@@ -140,7 +140,7 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 				if storageHandler.ResourceStorageProviderFn == nil {
 					return nil, fmt.Errorf("gvr %s has no storageprovider registered", gvr.String())
 				}
-				store, err := storageHandler.ResourceStorageProviderFn(ctx, s, g)
+				store, err := storageHandler.ResourceStorageProviderFn(s, g)
 				if err != nil {
 					return nil, err
 				}
@@ -155,7 +155,7 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 				}
 				// register the status subresource store if exists
 				if storageHandler.StatusSubResourceStorageProviderFn != nil {
-					statusStore, err := storageHandler.StatusSubResourceStorageProviderFn(ctx, s, store)
+					statusStore, err := storageHandler.StatusSubResourceStorageProviderFn(s, store)
 					if err != nil {
 						return nil, err
 					}
@@ -164,7 +164,7 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 				// register the arbitray subresource stores if exists
 				for subResourcename, storageProviderFn := range storageHandler.ArbitrarySubresourceHandlerProviders {
 					if storageProviderFn != nil {
-						subResourceStore, err := storageProviderFn(ctx, s, store)
+						subResourceStore, err := storageProviderFn(s, store)
 						if err != nil {
 							return nil, err
 						}

@@ -1,20 +1,14 @@
 package rest
 
 import (
-	"context"
-
-	//"github.com/henderiw/apiserver-builder/pkg/apiserver"
-	//contextutil "github.com/henderiw/apiserver-builder/pkg/util/context"
-	//metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	genericregistry "k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/registry/rest"
 )
 
-type ResourceStorageProviderFn func(ctx context.Context, scheme *runtime.Scheme, getter genericregistry.RESTOptionsGetter) (rest.Storage, error)
+type ResourceStorageProviderFn func(scheme *runtime.Scheme, getter genericregistry.RESTOptionsGetter) (rest.Storage, error)
 
-type SubResourceStorageProviderFn func(ctx context.Context, scheme *runtime.Scheme, store rest.Storage) (rest.Storage, error)
+type SubResourceStorageProviderFn func(scheme *runtime.Scheme, store rest.Storage) (rest.Storage, error)
 
 type StorageProvider struct {
 	//Obj                                  resource.Object

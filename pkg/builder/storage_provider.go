@@ -22,7 +22,7 @@ type singletonProvider struct {
 
 func (s *singletonProvider) Get(ctx context.Context, scheme *runtime.Scheme, optsGetter generic.RESTOptionsGetter) (registryrest.Storage, error) {
 	s.Once.Do(func() {
-		s.storage, s.err = s.Provider.ResourceStorageProviderFn(ctx, scheme, optsGetter)
+		s.storage, s.err = s.Provider.ResourceStorageProviderFn(scheme, optsGetter)
 	})
 	return s.storage, s.err
 }
