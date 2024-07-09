@@ -1,8 +1,6 @@
 package rest
 
-/*
 import (
-	"context"
 	"fmt"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
@@ -10,13 +8,24 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apiserver/pkg/registry/generic"
-	genericregistry "k8s.io/apiserver/pkg/registry/generic/registry"
-	"k8s.io/apiserver/pkg/registry/rest"
-	"k8s.io/apiserver/pkg/storage/names"
+	//genericregistry "k8s.io/apiserver/pkg/registry/generic/registry"
 )
-*/
+
+// GetAttrs returns labels.Set, fields.Set, and error in case the given runtime.Object is not a ObjectMetaProvider
+func GetAttrs(obj runtime.Object) (labels.Set, fields.Set, error) {
+	provider, ok := obj.(resource.Object)
+	if !ok {
+		return nil, nil, fmt.Errorf("given object of type %T does not have metadata", obj)
+	}
+	om := provider.GetObjectMeta()
+	return om.GetLabels(), SelectableFields(om), nil
+}
+
+// SelectableFields returns a field set that represents the object.
+func SelectableFields(obj *metav1.ObjectMeta) fields.Set {
+	return generic.ObjectMetaFieldsSet(obj, true)
+}
 
 /*
 // New returns a new etcd backed request handler for the resource.
@@ -119,20 +128,7 @@ func newStore(
 // StoreFn defines a function which modifies the Store before it is initialized.
 type StoreFn func(*runtime.Scheme, *genericregistry.Store, *generic.StoreOptions)
 
-// GetAttrs returns labels.Set, fields.Set, and error in case the given runtime.Object is not a ObjectMetaProvider
-func GetAttrs(obj runtime.Object) (labels.Set, fields.Set, error) {
-	provider, ok := obj.(resource.Object)
-	if !ok {
-		return nil, nil, fmt.Errorf("given object of type %T does not have metadata", obj)
-	}
-	om := provider.GetObjectMeta()
-	return om.GetLabels(), SelectableFields(om), nil
-}
 
-// SelectableFields returns a field set that represents the object.
-func SelectableFields(obj *metav1.ObjectMeta) fields.Set {
-	return generic.ObjectMetaFieldsSet(obj, true)
-}
 
 func newStatusStore(
 	scheme *runtime.Scheme,
