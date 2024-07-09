@@ -17,14 +17,6 @@ import (
 	"k8s.io/apiserver/pkg/server"
 )
 
-type StorageProvider func(ctx context.Context, s *runtime.Scheme, g genericregistry.RESTOptionsGetter) (rest.Storage, error)
-
-type StorageProviders struct {
-	ResourceStorageProvider              StorageProvider
-	StatusSubResourceStorageProvider     StorageProvider
-	ArbitrarySubresourceStorageProviders map[string]StorageProvider
-}
-
 var (
 	// Scheme defines methods for serializing and deserializing API objects.
 	Scheme = runtime.NewScheme()
