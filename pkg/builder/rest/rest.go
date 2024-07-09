@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
@@ -36,6 +37,10 @@ func GetAttrs(obj runtime.Object) (labels.Set, fields.Set, error) {
 // SelectableFields returns a field set that represents the object.
 func SelectableFields(obj *metav1.ObjectMeta) fields.Set {
 	return generic.ObjectMetaFieldsSet(obj, true)
+}
+
+type Filter interface {
+	Filter(ctx context.Context, obj runtime.Object) bool
 }
 
 /*

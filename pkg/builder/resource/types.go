@@ -17,6 +17,9 @@ limitations under the License.
 package resource
 
 import (
+	"context"
+
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apiserver/pkg/registry/rest"
 
@@ -68,6 +71,8 @@ type Object interface {
 	TableConvertor() func(gr schema.GroupResource) rest.TableConvertor
 
 	FieldLabelConversion() runtime.FieldLabelConversionFunc
+
+	FieldSelector() func(ctx context.Context, fieldSelector fields.Selector) (Filter, error)
 }
 
 // ObjectList must be implemented by all resources' list object.
@@ -111,4 +116,8 @@ type ObjectWithScaleSubResource interface {
 type ObjectWithArbitrarySubResource interface {
 	Object
 	GetArbitrarySubResources() []ArbitrarySubResource
+}
+
+type Filter interface {
+	Filter(ctx context.Context, obj runtime.Object) bool
 }
