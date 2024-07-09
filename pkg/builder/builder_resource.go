@@ -32,10 +32,10 @@ func (r *Server) WithResource(obj resource.Object) *Server {
 // another version.
 //
 // Note: WithResourceAndHandler will NOT register the "status" subresource for the resource object.
-func (r *Server) WithResourceAndHandler(obj resource.Object, sh rest.ResourceStorageHandler) *Server {
+func (r *Server) WithResourceAndHandler(obj resource.Object, sp rest.StorageProvider) *Server {
 	gvr := obj.GetGroupVersionResource()
 	r.schemeBuilder.Register(resource.AddToScheme(obj))
-	return r.forGroupVersionResource(gvr, sh)
+	return r.forGroupVersionResource(gvr, sp)
 }
 
 // WithSchemeInstallers registers functions to install resource types into the Scheme.
@@ -56,7 +56,7 @@ func (a *Server) withGroupVersions(
 }
 
 // forGroupVersionResource manually registers storage for a specific resource.
-func (a *Server) forGroupVersionResource(gvr schema.GroupVersionResource, sh rest.ResourceStorageHandler) *Server {
+func (a *Server) forGroupVersionResource(gvr schema.GroupVersionResource, sp rest.StorageProvider) *Server {
 	// register the group version
 	a.withGroupVersions(gvr.GroupVersion())
 
@@ -64,10 +64,10 @@ func (a *Server) forGroupVersionResource(gvr schema.GroupVersionResource, sh res
 	// don't replace the existing instance otherwise it will chain wrapped singletonProviders when
 	// fetching from the map before calling this function
 	if _, found := a.storageProvider[gvr.GroupResource()]; !found {
-		a.storageProvider[gvr.GroupResource()] = &singletonProvider{ProviderHandler: sh}
+		a.storageProvider[gvr.GroupResource()] = &singletonProvider{Provider: sp}
 	}
 	// add the API with its storageProvider
-	apiserver.APIs[gvr] = sh
+	apiserver.APIs[gvr] = sp
 	return a
 }
 

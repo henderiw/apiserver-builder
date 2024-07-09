@@ -6,6 +6,7 @@ import (
 	//"github.com/henderiw/apiserver-builder/pkg/apiserver"
 	//contextutil "github.com/henderiw/apiserver-builder/pkg/util/context"
 	//metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	genericregistry "k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/registry/rest"
@@ -15,7 +16,8 @@ type ResourceStorageProviderFn func(ctx context.Context, scheme *runtime.Scheme,
 
 type SubResourceStorageProviderFn func(ctx context.Context, scheme *runtime.Scheme, store rest.Storage) (rest.Storage, error)
 
-type ResourceStorageHandler struct {
+type StorageProvider struct {
+	//Obj                                  resource.Object
 	ResourceStorageProviderFn            ResourceStorageProviderFn
 	StatusSubResourceStorageProviderFn   SubResourceStorageProviderFn
 	ArbitrarySubresourceHandlerProviders map[string]SubResourceStorageProviderFn

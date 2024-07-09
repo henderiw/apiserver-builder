@@ -15,14 +15,14 @@ import (
 // singletonProvider ensures different versions of the same resource share storage
 type singletonProvider struct {
 	sync.Once
-	ProviderHandler builderrest.ResourceStorageHandler
-	storage         registryrest.Storage
-	err             error
+	Provider builderrest.StorageProvider
+	storage  registryrest.Storage
+	err      error
 }
 
 func (s *singletonProvider) Get(ctx context.Context, scheme *runtime.Scheme, optsGetter generic.RESTOptionsGetter) (registryrest.Storage, error) {
 	s.Once.Do(func() {
-		s.storage, s.err = s.ProviderHandler.ResourceStorageProviderFn(ctx, scheme, optsGetter)
+		s.storage, s.err = s.Provider.ResourceStorageProviderFn(ctx, scheme, optsGetter)
 	})
 	return s.storage, s.err
 }

@@ -35,7 +35,7 @@ var (
 	ParameterScheme = runtime.NewScheme()
 	ParameterCodec  = runtime.NewParameterCodec(ParameterScheme)
 
-	APIs                = map[schema.GroupVersionResource]restbuilder.ResourceStorageHandler{}
+	APIs                = map[schema.GroupVersionResource]restbuilder.StorageProvider{}
 	GenericAPIServerFns []func(*server.GenericAPIServer) *server.GenericAPIServer
 )
 
