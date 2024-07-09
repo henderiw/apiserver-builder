@@ -66,6 +66,8 @@ type Object interface {
 
 	// TableConvertor return the table convertor interface
 	TableConvertor() func(gr schema.GroupResource) rest.TableConvertor
+
+	FieldLabelConversion() runtime.FieldLabelConversionFunc
 }
 
 // ObjectList must be implemented by all resources' list object.
