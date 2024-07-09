@@ -5,6 +5,7 @@ package rest
 import (
 	"context"
 
+	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource/resourcestrategy"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -14,33 +15,23 @@ import (
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/apiserver/pkg/storage"
 	"k8s.io/apiserver/pkg/storage/names"
-	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 )
 
-// Strategy defines functions that are invoked prior to storing a Kubernetes resource.
-type Strategy interface {
-	AllowCreateOnUpdate() bool
-	AllowUnconditionalUpdate() bool
-	Match(label labels.Selector, field fields.Selector) storage.SelectionPredicate
-	rest.RESTUpdateStrategy
-	rest.RESTCreateStrategy
-	rest.RESTDeleteStrategy
-	rest.TableConvertor
+// StatusStrategy defines functions that are invoked prior to storing a Kubernetes resource.
+type StatusStrategy interface {
 }
 
-var _ Strategy = DefaultStrategy{}
+var _ StatusStrategy = DefaultStatusStrategy{}
 
-// DefaultStrategy implements Strategy.  DefaultStrategy may be embedded in another struct to override
-// is implementation.  DefaultStrategy will delegate to functions specified on the resource type go structs
-// if implemented.  See the typeintf package for the implementable functions.
-type DefaultStrategy struct {
+// DefaultStatusStrategy implements StatusStrategy.
+type DefaultStatusStrategy struct {
 	Object runtime.Object
+	names.NameGenerator
 	runtime.ObjectTyper
-	TableConvertor rest.TableConvertor
 }
 
 // GenerateName generates a new name for a resource without one.
-func (d DefaultStrategy) GenerateName(base string) string {
+func (d DefaultStatusStrategy) GenerateName(base string) string {
 	if d.Object == nil {
 		return names.SimpleNameGenerator.GenerateName(base)
 	}
@@ -51,7 +42,7 @@ func (d DefaultStrategy) GenerateName(base string) string {
 }
 
 // NamespaceScoped is used to register the resource as namespaced or non-namespaced.
-func (d DefaultStrategy) NamespaceScoped() bool {
+func (d DefaultStatusStrategy) NamespaceScoped() bool {
 	if d.Object == nil {
 		return true
 	}
@@ -62,14 +53,14 @@ func (d DefaultStrategy) NamespaceScoped() bool {
 }
 
 // PrepareForCreate calls the PrepareForCreate function on obj if supported, otherwise does nothing.
-func (DefaultStrategy) PrepareForCreate(ctx context.Context, obj runtime.Object) {
+func (DefaultStatusStrategy) PrepareForCreate(ctx context.Context, obj runtime.Object) {
 	if v, ok := obj.(resourcestrategy.PrepareForCreater); ok {
 		v.PrepareForCreate(ctx)
 	}
 }
 
 // PrepareForUpdate calls the PrepareForUpdate function on obj if supported, otherwise does nothing.
-func (DefaultStrategy) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
+func (DefaultStatusStrategy) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
 	if v, ok := obj.(resource.ObjectWithStatusSubResource); ok {
 		// don't modify the status
 		old.(resource.ObjectWithStatusSubResource).GetStatus().CopyTo(v)
@@ -80,7 +71,7 @@ func (DefaultStrategy) PrepareForUpdate(ctx context.Context, obj, old runtime.Ob
 }
 
 // Validate calls the Validate function on obj if supported, otherwise does nothing.
-func (DefaultStrategy) Validate(ctx context.Context, obj runtime.Object) field.ErrorList {
+func (DefaultStatusStrategy) Validate(ctx context.Context, obj runtime.Object) field.ErrorList {
 	if v, ok := obj.(resourcestrategy.Validater); ok {
 		return v.Validate(ctx)
 	}
@@ -88,7 +79,7 @@ func (DefaultStrategy) Validate(ctx context.Context, obj runtime.Object) field.E
 }
 
 // AllowCreateOnUpdate is used by the Store
-func (d DefaultStrategy) AllowCreateOnUpdate() bool {
+func (d DefaultStatusStrategy) AllowCreateOnUpdate() bool {
 	if d.Object == nil {
 		return false
 	}
@@ -99,7 +90,7 @@ func (d DefaultStrategy) AllowCreateOnUpdate() bool {
 }
 
 // AllowUnconditionalUpdate is used by the Store
-func (d DefaultStrategy) AllowUnconditionalUpdate() bool {
+func (d DefaultStatusStrategy) AllowUnconditionalUpdate() bool {
 	if d.Object == nil {
 		return false
 	}
@@ -110,14 +101,14 @@ func (d DefaultStrategy) AllowUnconditionalUpdate() bool {
 }
 
 // Canonicalize calls the Canonicalize function on obj if supported, otherwise does nothing.
-func (DefaultStrategy) Canonicalize(obj runtime.Object) {
+func (DefaultStatusStrategy) Canonicalize(obj runtime.Object) {
 	if c, ok := obj.(resourcestrategy.Canonicalizer); ok {
 		c.Canonicalize()
 	}
 }
 
 // ValidateUpdate calls the ValidateUpdate function on obj if supported, otherwise does nothing.
-func (DefaultStrategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
+func (DefaultStatusStrategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
 	if v, ok := obj.(resourcestrategy.ValidateUpdater); ok {
 		return v.ValidateUpdate(ctx, old)
 	}
@@ -126,7 +117,7 @@ func (DefaultStrategy) ValidateUpdate(ctx context.Context, obj, old runtime.Obje
 
 // Match is the filter used by the generic etcd backend to watch events
 // from etcd to clients of the apiserver only interested in specific labels/fields.
-func (DefaultStrategy) Match(label labels.Selector, field fields.Selector) storage.SelectionPredicate {
+func (DefaultStatusStrategy) Match(label labels.Selector, field fields.Selector) storage.SelectionPredicate {
 	return storage.SelectionPredicate{
 		Label:    label,
 		Field:    field,
@@ -135,7 +126,7 @@ func (DefaultStrategy) Match(label labels.Selector, field fields.Selector) stora
 }
 
 // ConvertToTable is used for printing the resource from kubectl get
-func (d DefaultStrategy) ConvertToTable(
+func (d DefaultStatusStrategy) ConvertToTable(
 	ctx context.Context, obj runtime.Object, tableOptions runtime.Object) (*metav1.Table, error) {
 	if c, ok := obj.(resourcestrategy.TableConverter); ok {
 		return c.ConvertToTable(ctx, tableOptions)
@@ -144,12 +135,12 @@ func (d DefaultStrategy) ConvertToTable(
 }
 
 // WarningsOnCreate sends warning header on create
-func (d DefaultStrategy) WarningsOnCreate(ctx context.Context, obj runtime.Object) []string {
+func (d DefaultStatusStrategy) WarningsOnCreate(ctx context.Context, obj runtime.Object) []string {
 	return nil
 }
 
 // WarningsOnUpdate sends warning header on update
-func (d DefaultStrategy) WarningsOnUpdate(ctx context.Context, obj, old runtime.Object) []string {
+func (d DefaultStatusStrategy) WarningsOnUpdate(ctx context.Context, obj, old runtime.Object) []string {
 	return nil
 }
 */

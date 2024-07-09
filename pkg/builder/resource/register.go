@@ -2,13 +2,12 @@ package resource
 
 import (
 	"fmt"
-	"reflect"
 
+	"github.com/henderiw/apiserver-builder/pkg/builder/resource/resourcestrategy"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"github.com/henderiw/apiserver-builder/pkg/builder/resource/resourcestrategy"
 )
 
 // AddToScheme returns a function to add the Objects to the scheme.
@@ -53,6 +52,7 @@ func AddToScheme(objs ...Object) func(s *runtime.Scheme) error {
 			// register subresources
 			if objWithStatus, ok := obj.(ObjectWithStatusSubResource); ok {
 				if statusObj, ok := objWithStatus.GetStatus().(runtime.Object); ok {
+					// WIMCHECK IS THIS RELECTING /status
 					s.AddKnownTypes(obj.GetGroupVersionResource().GroupVersion(), statusObj)
 				}
 			}
@@ -63,16 +63,22 @@ func AddToScheme(objs ...Object) func(s *runtime.Scheme) error {
 					}
 				}
 			}
-			if sgs, ok := obj.(ObjectWithArbitrarySubResource); ok {
-				for _, sub := range sgs.GetArbitrarySubResources() {
-					sub := sub
-					parentGVR := obj.GetGroupVersionResource()
-					subResourceGVR := parentGVR.GroupVersion().WithResource(parentGVR.Resource + "/" + sub.SubResourceName())
-					if reflect.TypeOf(sub.New()) != reflect.TypeOf(obj) { // subResource.New() may return the parent resource at some time
-						s.AddKnownTypes(subResourceGVR.GroupVersion(), sub.New())
+
+			// WIM: we assume right now that an arbitrary subresource is using the parent object
+			// e.g. the scale subresources is adding an autoscaling scale kind to the type
+			/*
+				if sgs, ok := obj.(ObjectWithArbitrarySubResource); ok {
+					for _, sub := range sgs.GetArbitrarySubResources() {
+						sub := sub
+						parentGVR := obj.GetGroupVersionResource()
+						subResourceGVR := parentGVR.GroupVersion().WithResource(parentGVR.Resource + "/" + sub.SubResourceName())
+						if reflect.TypeOf(sub.New()) != reflect.TypeOf(obj) { // subResource.New() may return the parent resource at some time
+							fmt.Println("AddToScheme: arbitrary resource")
+							s.AddKnownTypes(subResourceGVR.GroupVersion(), sub.New())
+						}
 					}
 				}
-			}
+			*/
 		}
 		return nil
 	}

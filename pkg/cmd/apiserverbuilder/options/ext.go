@@ -1,4 +1,4 @@
-package apiserverbuilder
+package options
 
 import (
 	"github.com/spf13/pflag"
@@ -10,7 +10,6 @@ var (
 	RecommendedConfigFns []func(*server.RecommendedConfig) *server.RecommendedConfig
 	ServerOptionsFns     []func(server *ServerOptions) *ServerOptions
 	FlagsFns             []func(fs *pflag.FlagSet) *pflag.FlagSet
-	//NewCommandStartServer = NewCommandStartWardleServer
 )
 
 func ApplyServerOptionsFns(in *ServerOptions) *ServerOptions {

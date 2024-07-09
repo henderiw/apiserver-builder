@@ -64,6 +64,7 @@ type Object interface {
 	// NamespaceScoped
 	NamespaceScoped() bool
 
+	// TableConvertor return the table convertor interface
 	TableConvertor() func(gr schema.GroupResource) rest.TableConvertor
 }
 
