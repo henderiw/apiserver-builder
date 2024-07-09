@@ -9,8 +9,19 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/registry/generic"
+	"k8s.io/apiserver/pkg/storage"
 	//genericregistry "k8s.io/apiserver/pkg/registry/generic/registry"
 )
+
+// MatchPackageRevision is the filter used by the generic etcd backend to watch events
+// from etcd to clients of the apiserver only interested in specific labels/fields.
+func Match(label labels.Selector, field fields.Selector) storage.SelectionPredicate {
+	return storage.SelectionPredicate{
+		Label:    label,
+		Field:    field,
+		GetAttrs: GetAttrs,
+	}
+}
 
 // GetAttrs returns labels.Set, fields.Set, and error in case the given runtime.Object is not a ObjectMetaProvider
 func GetAttrs(obj runtime.Object) (labels.Set, fields.Set, error) {
