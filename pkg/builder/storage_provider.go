@@ -15,7 +15,7 @@ import (
 // singletonProvider ensures different versions of the same resource share storage
 type singletonProvider struct {
 	sync.Once
-	Provider builderrest.StorageProvider
+	Provider *builderrest.StorageProvider
 	storage  registryrest.Storage
 	err      error
 }

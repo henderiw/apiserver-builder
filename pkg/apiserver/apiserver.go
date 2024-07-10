@@ -27,7 +27,7 @@ var (
 	ParameterScheme = runtime.NewScheme()
 	ParameterCodec  = runtime.NewParameterCodec(ParameterScheme)
 
-	APIs                = map[schema.GroupVersionResource]restbuilder.StorageProvider{}
+	APIs                = map[schema.GroupVersionResource]*restbuilder.StorageProvider{}
 	GenericAPIServerFns []func(*server.GenericAPIServer) *server.GenericAPIServer
 )
 
@@ -140,14 +140,16 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 				if storageHandler.ResourceStorageProviderFn == nil {
 					return nil, fmt.Errorf("gvr %s has no storageprovider registered", gvr.String())
 				}
-				store, err := storageHandler.ResourceStorageProviderFn(s, g)
+				storage, err := storageHandler.ResourceStorageProviderFn(s, g)
 				if err != nil {
 					return nil, err
 				}
-				apis[gvr.Version][gvr.Resource] = store
+				fmt.Println("BuildAPIGroupInfos", group, gvr.Version, gvr.Resource, storage)
+
+				apis[gvr.Version][gvr.Resource] = storage
 				// add the defaulting function for this version to the scheme
-				if _, ok := store.(resourcestrategy.Defaulter); ok {
-					if obj, ok := store.(runtime.Object); ok {
+				if _, ok := storage.(resourcestrategy.Defaulter); ok {
+					if obj, ok := storage.(runtime.Object); ok {
 						s.AddTypeDefaultingFunc(obj, func(obj interface{}) {
 							obj.(resourcestrategy.Defaulter).Default()
 						})
@@ -155,20 +157,24 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 				}
 				// register the status subresource store if exists
 				if storageHandler.StatusSubResourceStorageProviderFn != nil {
-					statusStore, err := storageHandler.StatusSubResourceStorageProviderFn(s, store)
+					statusstorage, err := storageHandler.StatusSubResourceStorageProviderFn(s, storage)
 					if err != nil {
 						return nil, err
 					}
-					apis[gvr.Version][gvr.Resource+"/status"] = statusStore
+					apis[gvr.Version][gvr.Resource+"/"+"status"] = statusstorage
+
+					fmt.Println("BuildAPIGroupInfos", group, gvr.Version, gvr.Resource+"/status", statusstorage)
 				}
 				// register the arbitray subresource stores if exists
 				for subResourcename, storageProviderFn := range storageHandler.ArbitrarySubresourceHandlerProviders {
 					if storageProviderFn != nil {
-						subResourceStore, err := storageProviderFn(s, store)
+						subResourceStorage, err := storageProviderFn(s, storage)
 						if err != nil {
 							return nil, err
 						}
-						apis[gvr.Version][gvr.Resource+"/"+subResourcename] = subResourceStore
+						apis[gvr.Version][gvr.Resource+"/"+subResourcename] = subResourceStorage
+
+						fmt.Println("BuildAPIGroupInfos", group, gvr.Version, gvr.Resource+"/"+subResourcename, subResourceStorage)
 					}
 				}
 			}

@@ -35,7 +35,7 @@ func (r *Server) WithResource(obj resource.Object) *Server {
 // another version.
 //
 // Note: WithResourceAndHandler will NOT register the "status" subresource for the resource object.
-func (r *Server) WithResourceAndHandler(obj resource.Object, sp rest.StorageProvider) *Server {
+func (r *Server) WithResourceAndHandler(obj resource.Object, sp *rest.StorageProvider) *Server {
 	gvr := obj.GetGroupVersionResource()
 	r.schemeBuilder.Register(resource.AddToScheme(obj))
 	return r.forGroupVersionResource(gvr, sp)
@@ -62,7 +62,7 @@ func (a *Server) withGroupVersions(
 }
 
 // forGroupVersionResource manually registers storage for a specific resource.
-func (a *Server) forGroupVersionResource(gvr schema.GroupVersionResource, sp rest.StorageProvider) *Server {
+func (a *Server) forGroupVersionResource(gvr schema.GroupVersionResource, sp *rest.StorageProvider) *Server {
 	// register the group version
 	a.withGroupVersions(gvr.GroupVersion())
 

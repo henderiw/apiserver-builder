@@ -2,18 +2,6 @@ module github.com/henderiw/apiserver-builder
 
 go 1.21.4
 
-//replace k8s.io/client-go => k8s.io/client-go v0.28.6
-
-//replace k8s.io/api => k8s.io/api v0.28.6
-
-//replace k8s.io/apimachinery => k8s.io/apimachinery v0.28.6
-
-//replace k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.28.6
-
-//replace k8s.io/apiserver => k8s.io/apiserver v0.28.6
-
-//replace k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20230717233707-2695361300d9
-
 require (
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
