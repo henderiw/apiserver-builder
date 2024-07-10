@@ -5,6 +5,7 @@ import (
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-builder/pkg/builder/rest"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 /*
@@ -50,6 +51,9 @@ func (a *Server) withGroupVersions(
 			continue
 		}
 		a.groupVersions[gv] = true
+		if gv.Version == runtime.APIVersionInternal {
+			continue
+		}
 		a.orderedGroupVersions = append(a.orderedGroupVersions, gv)
 	}
 	return a
