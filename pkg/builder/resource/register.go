@@ -27,6 +27,10 @@ func AddToScheme(objs ...Object) func(s *runtime.Scheme) error {
 					Version: runtime.APIVersionInternal,
 				}, obj.New(), obj.NewList())
 			} else {
+				s.AddKnownTypes(schema.GroupVersion{
+					Group:   obj.GetGroupVersionResource().Group,
+					Version: obj.GetGroupVersionResource().Version,
+				}, obj.New(), obj.NewList())
 				multiVersionObj, ok := obj.(MultiVersionObject)
 				if !ok {
 					return fmt.Errorf("resource should implement MultiVersionObject if it's not storage-version")
