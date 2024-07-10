@@ -29,8 +29,6 @@ func AddToScheme(objs ...Object) func(s *runtime.Scheme) error {
 				}, obj.New(), obj.NewList())
 				fmt.Println("AddToScheme storageVersion", obj.GetGroupVersionResource().GroupVersion().String(), obj, reflect.TypeOf(obj.New()).Name())
 			} else {
-				fmt.Println("AddToScheme", obj.GetGroupVersionResource().GroupVersion().String(),obj, reflect.TypeOf(obj.New()).Name())
-				s.AddKnownTypes(obj.GetGroupVersionResource().GroupVersion(), obj.New(), obj.NewList())
 				multiVersionObj, ok := obj.(MultiVersionObject)
 				if !ok {
 					return fmt.Errorf("resource should implement MultiVersionObject if it's not storage-version")
