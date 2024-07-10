@@ -2,6 +2,7 @@ package resource
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource/resourcestrategy"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
@@ -27,6 +28,7 @@ func AddToScheme(objs ...Object) func(s *runtime.Scheme) error {
 					Version: runtime.APIVersionInternal,
 				}, obj.New(), obj.NewList())
 			} else {
+				fmt.Println("AddToScheme", obj.GetGroupVersionResource().GroupVersion().String(), reflect.TypeOf(obj.New()).Name())
 				s.AddKnownTypes(obj.GetGroupVersionResource().GroupVersion(), obj.New(), obj.NewList())
 				multiVersionObj, ok := obj.(MultiVersionObject)
 				if !ok {
