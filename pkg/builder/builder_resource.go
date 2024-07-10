@@ -1,8 +1,6 @@
 package builder
 
 import (
-	"context"
-
 	"github.com/henderiw/apiserver-builder/pkg/apiserver"
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-builder/pkg/builder/rest"
@@ -34,7 +32,7 @@ func (r *Server) WithResource(obj resource.Object) *Server {
 // another version.
 //
 // Note: WithResourceAndHandler will NOT register the "status" subresource for the resource object.
-func (r *Server) WithResourceAndHandler(ctx context.Context, obj resource.Object, sp rest.StorageProvider) *Server {
+func (r *Server) WithResourceAndHandler(obj resource.Object, sp rest.StorageProvider) *Server {
 	gvr := obj.GetGroupVersionResource()
 	r.schemeBuilder.Register(resource.AddToScheme(obj))
 	return r.forGroupVersionResource(gvr, sp)
