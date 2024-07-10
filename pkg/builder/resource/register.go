@@ -32,20 +32,8 @@ func AddToScheme(objs ...Object) func(s *runtime.Scheme) error {
 				if !ok {
 					return fmt.Errorf("resource should implement MultiVersionObject if it's not storage-version")
 				}
-				// registering conversion functions to scheme instance
-				storageVersionObj := multiVersionObj.NewStorageVersionObject()
-				if err := s.AddConversionFunc(obj, storageVersionObj, multiVersionObj.ConvertFromStorageVersion()); err != nil {
-					return err
-				}
-				if err := s.AddConversionFunc(storageVersionObj, obj, multiVersionObj.ConvertToStorageVersion()); err != nil {
-					return err
-				}
-				storageVersionObjList := multiVersionObj.NewStorageVersionObjectList()
-				objList := obj.NewList()
-				if err := s.AddConversionFunc(objList, storageVersionObjList, multiVersionObj.ConvertToStorageVersionList()); err != nil {
-					return err
-				}
-				if err := s.AddConversionFunc(storageVersionObjList, objList, multiVersionObj.ConvertToStorageVersionList()); err != nil {
+
+				if err := multiVersionObj.RegisterConversions()(s); err != nil {
 					return err
 				}
 
