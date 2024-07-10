@@ -1,11 +1,13 @@
 package builder
 
 import (
+	"fmt"
+
 	"github.com/henderiw/apiserver-builder/pkg/apiserver"
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-builder/pkg/builder/rest"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 /*
@@ -70,6 +72,8 @@ func (a *Server) forGroupVersionResource(gvr schema.GroupVersionResource, sp res
 	if _, found := a.storageProvider[gvr.GroupResource()]; !found {
 		a.storageProvider[gvr.GroupResource()] = &singletonProvider{Provider: sp}
 	}
+
+	fmt.Println("forGroupVersionResource", gvr.String(), sp)
 	// add the API with its storageProvider
 	apiserver.APIs[gvr] = sp
 	return a

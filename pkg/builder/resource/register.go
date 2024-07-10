@@ -32,11 +32,9 @@ func AddToScheme(objs ...Object) func(s *runtime.Scheme) error {
 				if !ok {
 					return fmt.Errorf("resource should implement MultiVersionObject if it's not storage-version")
 				}
-
 				if err := multiVersionObj.RegisterConversions()(s); err != nil {
 					return err
 				}
-
 			}
 			if _, ok := obj.(resourcestrategy.Defaulter); ok {
 				s.AddTypeDefaultingFunc(obj, func(o interface{}) {
