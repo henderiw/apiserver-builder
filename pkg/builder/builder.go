@@ -47,6 +47,7 @@ func (r *Server) build(ctx context.Context) (*Command, error) {
 			for g, versions := range groupVersions {
 				gvs := []schema.GroupVersion{}
 				for v := range versions {
+					// ignore internal version for priority setting
 					if v == runtime.APIVersionInternal {
 						continue
 					}

@@ -14,7 +14,7 @@ import (
 //
 // AddToScheme will register the objects returned by New and NewList under the GroupVersion for each object.
 // AddToScheme will also register the objects under the "__internal" group version for each object that
-// returns true for IsInternalVersion.
+// returns true for IsStorageVersion.
 // AddToScheme will register the defaulting function if it implements the Defaulter inteface.
 func AddToScheme(objs ...Object) func(s *runtime.Scheme) error {
 	return func(s *runtime.Scheme) error {
