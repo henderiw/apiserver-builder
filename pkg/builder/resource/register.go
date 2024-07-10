@@ -6,7 +6,6 @@ import (
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource/resourcestrategy"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
-	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -35,16 +34,21 @@ func AddToScheme(objs ...Object) func(s *runtime.Scheme) error {
 				}
 				// registering conversion functions to scheme instance
 				storageVersionObj := multiVersionObj.NewStorageVersionObject()
-				if err := s.AddConversionFunc(obj, storageVersionObj, func(from, to interface{}, _ conversion.Scope) error {
-					return from.(MultiVersionObject).ConvertToStorageVersion(to.(runtime.Object))
-				}); err != nil {
+				if err := s.AddConversionFunc(obj, storageVersionObj, multiVersionObj.ConvertFromStorageVersion()); err != nil {
 					return err
 				}
-				if err := s.AddConversionFunc(storageVersionObj, obj, func(from, to interface{}, _ conversion.Scope) error {
-					return to.(MultiVersionObject).ConvertFromStorageVersion(from.(runtime.Object))
-				}); err != nil {
+				if err := s.AddConversionFunc(storageVersionObj, obj, multiVersionObj.ConvertToStorageVersion()); err != nil {
 					return err
 				}
+				storageVersionObjList := multiVersionObj.NewStorageVersionObjectList()
+				objList := obj.NewList()
+				if err := s.AddConversionFunc(objList, storageVersionObjList, multiVersionObj.ConvertToStorageVersionList()); err != nil {
+					return err
+				}
+				if err := s.AddConversionFunc(storageVersionObjList, objList, multiVersionObj.ConvertToStorageVersionList()); err != nil {
+					return err
+				}
+
 			}
 			if _, ok := obj.(resourcestrategy.Defaulter); ok {
 				s.AddTypeDefaultingFunc(obj, func(o interface{}) {

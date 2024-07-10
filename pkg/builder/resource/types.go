@@ -19,6 +19,7 @@ package resource
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apiserver/pkg/registry/rest"
@@ -94,13 +95,24 @@ type MultiVersionObject interface {
 	// NewStorageVersionObject returns a new empty instance of storage version.
 	NewStorageVersionObject() runtime.Object
 
+	// NewStorageVersionObjectList returns a new empty list instance of storage version.
+	NewStorageVersionObjectList() runtime.Object
+
 	// ConvertToStorageVersion receives an new instance of storage version object as the conversion target
 	// and overwrites it to the equal form of the current resource version.
-	ConvertToStorageVersion(storageObj runtime.Object) error
+	ConvertToStorageVersion() func(from, to interface{}, _ conversion.Scope) error
 
 	// ConvertFromStorageVersion receives an instance of storage version as the conversion source and
 	// in-place mutates the current object to the equal form of the storage version object.
-	ConvertFromStorageVersion(storageObj runtime.Object) error
+	ConvertFromStorageVersion() func(from, to interface{}, _ conversion.Scope) error
+
+	// ConvertToStorageVersionList receives an new instance of storage version object as the conversion target
+	// and overwrites it to the equal form of the current resource version.
+	ConvertToStorageVersionList() func(from, to interface{}, _ conversion.Scope) error
+
+	// ConvertFromStorageVersionList receives an instance of storage version as the conversion source and
+	// in-place mutates the current object to the equal form of the storage version object.
+	ConvertFromStorageVersionList() func(from, to interface{}, _ conversion.Scope) error
 }
 
 // ObjectWithStatusSubResource defines an interface for getting and setting the status sub-resource for a resource.
