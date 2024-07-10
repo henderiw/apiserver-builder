@@ -27,8 +27,9 @@ func AddToScheme(objs ...Object) func(s *runtime.Scheme) error {
 					Group:   obj.GetGroupVersionResource().Group,
 					Version: runtime.APIVersionInternal,
 				}, obj.New(), obj.NewList())
+				fmt.Println("AddToScheme storageVersion", obj.GetGroupVersionResource().GroupVersion().String(), obj, reflect.TypeOf(obj.New()).Name())
 			} else {
-				fmt.Println("AddToScheme", obj.GetGroupVersionResource().GroupVersion().String(), reflect.TypeOf(obj.New()).Name())
+				fmt.Println("AddToScheme", obj.GetGroupVersionResource().GroupVersion().String(),obj, reflect.TypeOf(obj.New()).Name())
 				s.AddKnownTypes(obj.GetGroupVersionResource().GroupVersion(), obj.New(), obj.NewList())
 				multiVersionObj, ok := obj.(MultiVersionObject)
 				if !ok {
