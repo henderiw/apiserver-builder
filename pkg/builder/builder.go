@@ -47,6 +47,9 @@ func (r *Server) build(ctx context.Context) (*Command, error) {
 			for g, versions := range groupVersions {
 				gvs := []schema.GroupVersion{}
 				for v := range versions {
+					if v == runtime.APIVersionInternal {
+						continue
+					}
 					gvs = append(gvs, schema.GroupVersion{
 						Group:   g,
 						Version: v,
