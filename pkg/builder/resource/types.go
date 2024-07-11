@@ -93,7 +93,7 @@ type InternalObject interface {
 	PrepareForUpdate(ctx context.Context, old runtime.Object)
 
 	// ValidateUpdate return field errors on specific validation of the resource upon update
-	ValidateUpdate(ctx context.Context) field.ErrorList
+	ValidateUpdate(ctx context.Context, old runtime.Object) field.ErrorList
 }
 
 // ObjectList must be implemented by all resources' list object.
