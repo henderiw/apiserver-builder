@@ -21,6 +21,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/apiserver/pkg/registry/rest"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -59,24 +60,40 @@ type Object interface {
 type InternalObject interface {
 	Object
 
-	// GetSingularName
+	// GetSingularName return the singular name of the resource
 	GetSingularName() string
 
-	// GetShortNames
+	// GetShortNames retruns the short names for the resource
 	GetShortNames() []string
 
-	// GetCategories
+	// GetCategories returns the categories of the resource
 	GetCategories() []string
 
-	// NamespaceScoped
+	// NamespaceScoped returns if the resource is namespaced or not
 	NamespaceScoped() bool
 
 	// TableConvertor return the table convertor interface
 	TableConvertor() func(gr schema.GroupResource) rest.TableConvertor
 
+	// FieldLabelConversion returns the field conversion function
 	FieldLabelConversion() runtime.FieldLabelConversionFunc
 
+	// FieldSelector returns a function that is used to filter resources based on field selectors
 	FieldSelector() func(ctx context.Context, fieldSelector fields.Selector) (Filter, error)
+
+	// PrepareForCreate prepares the resource for creation.
+	// e.g. sets status empty status
+	PrepareForCreate(ctx context.Context)
+
+	// ValidateCreate return field errors on specific validation of the resource upon create
+	ValidateCreate(ctx context.Context) field.ErrorList
+
+	// PrepareForUpdate prepares the resource for update.
+	// e.g. sets status empty status
+	PrepareForUpdate(ctx context.Context, old runtime.Object)
+
+	// ValidateUpdate return field errors on specific validation of the resource upon update
+	ValidateUpdate(ctx context.Context) field.ErrorList
 }
 
 // ObjectList must be implemented by all resources' list object.
@@ -92,6 +109,12 @@ type ObjectList interface {
 // at the server.
 type MultiVersionObject interface {
 	RegisterConversions() func(s *runtime.Scheme) error
+}
+
+// ObjectWithSpec defines an interface for getting and setting the spec for a resource.
+type ObjectWithSpec interface {
+	Object
+	GetSpec() (spec SpecResource)
 }
 
 // ObjectWithStatusSubResource defines an interface for getting and setting the status sub-resource for a resource.
