@@ -138,6 +138,22 @@ func UpdateResourceVersionAndGeneration(obj, old runtime.Object) error {
 	return nil
 }
 
+func UpdateResourceVersion(obj, old runtime.Object) error {
+	accessorNew, err := meta.Accessor(obj)
+	if err != nil {
+		return err
+	}
+	accessorOld, err := meta.Accessor(old)
+	if err != nil {
+		return err
+	}
+	if err := updateResourceVersion(accessorNew, accessorOld); err != nil {
+		return err
+	}
+	updateGeneration(accessorNew, accessorOld)
+	return nil
+}
+
 func updateResourceVersion(new, old metav1.Object) error {
 	resourceVersion, err := strconv.Atoi(old.GetResourceVersion())
 	if err != nil {
