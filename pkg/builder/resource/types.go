@@ -83,17 +83,17 @@ type InternalObject interface {
 
 	// PrepareForCreate prepares the resource for creation.
 	// e.g. sets status empty status
-	PrepareForCreate(ctx context.Context)
+	PrepareForCreate(ctx context.Context, obj runtime.Object)
 
 	// ValidateCreate return field errors on specific validation of the resource upon create
-	ValidateCreate(ctx context.Context) field.ErrorList
+	ValidateCreate(ctx context.Context, obj runtime.Object) field.ErrorList
 
 	// PrepareForUpdate prepares the resource for update.
 	// e.g. sets status empty status
-	PrepareForUpdate(ctx context.Context, old runtime.Object)
+	PrepareForUpdate(ctx context.Context, obj, old runtime.Object)
 
 	// ValidateUpdate return field errors on specific validation of the resource upon update
-	ValidateUpdate(ctx context.Context, old runtime.Object) field.ErrorList
+	ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList
 
 	// Is Equal compares the specification of the various objects
 	IsEqual(ctx context.Context, obj, old runtime.Object) bool
@@ -122,6 +122,13 @@ type ObjectWithStatusSubResource interface {
 
 	// IsEqual validates if status subresources are equal
 	IsStatusEqual(ctx context.Context, obj, old runtime.Object) bool
+
+	// PrepareForUpdate prepares the resource for update.
+	// e.g. sets status empty status
+	PrepareForStatusUpdate(ctx context.Context, obj, old runtime.Object)
+
+	// ValidateStatusUpdate return field errors on specific validation of the resource upon update
+	ValidateStatusUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList
 }
 
 // ObjectWithScaleSubResource defines an interface for getting and setting the scale sub-resource for a resource.
