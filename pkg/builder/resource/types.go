@@ -96,7 +96,7 @@ type InternalObject interface {
 	ValidateUpdate(ctx context.Context, old runtime.Object) field.ErrorList
 
 	// Is Equal compares the specification of the various objects
-	IsEqual(ctx context.Context, obj, old runtime.Object)
+	IsEqual(ctx context.Context, obj, old runtime.Object) bool
 }
 
 // ObjectList must be implemented by all resources' list object.

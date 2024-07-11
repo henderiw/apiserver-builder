@@ -16,6 +16,12 @@ limitations under the License.
 
 package resource
 
+import (
+	"context"
+
+	"k8s.io/apimachinery/pkg/runtime"
+)
+
 // SubResource defines interface for registering arbitrary subresource to the parent resource.
 type SubResource interface {
 	SubResourceName() string
@@ -29,7 +35,7 @@ type StatusSubResource interface {
 	CopyTo(parent ObjectWithStatusSubResource)
 
 	// IsEqual validates if status subresources are equal
-	IsEqual(parent ObjectWithStatusSubResource) bool
+	IsEqual(ctx context.Context, obj, old runtime.Object) bool
 }
 
 // ArbitrarySubResource defines required methods for extending a new custom subresource.
