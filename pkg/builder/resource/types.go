@@ -116,8 +116,12 @@ type MultiVersionObject interface {
 
 // ObjectWithStatusSubResource defines an interface for getting and setting the status sub-resource for a resource.
 type ObjectWithStatusSubResource interface {
-	Object
+	InternalObject
+	// GetStatus returns the status subresource
 	GetStatus() (statusSubResource StatusSubResource)
+
+	// IsEqual validates if status subresources are equal
+	IsStatusEqual(ctx context.Context, obj, old runtime.Object) bool
 }
 
 // ObjectWithScaleSubResource defines an interface for getting and setting the scale sub-resource for a resource.
