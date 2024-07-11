@@ -27,6 +27,9 @@ type StatusSubResource interface {
 	SubResource
 	// CopyTo copies the content of the status subresource to a parent resource.
 	CopyTo(parent ObjectWithStatusSubResource)
+
+	// IsEqual validates if status subresources are equal
+	IsEqual(parent ObjectWithStatusSubResource) bool
 }
 
 // ArbitrarySubResource defines required methods for extending a new custom subresource.

@@ -94,6 +94,9 @@ type InternalObject interface {
 
 	// ValidateUpdate return field errors on specific validation of the resource upon update
 	ValidateUpdate(ctx context.Context, old runtime.Object) field.ErrorList
+
+	// Is Equal compares the specification of the various objects
+	IsEqual(ctx context.Context, obj, old runtime.Object)
 }
 
 // ObjectList must be implemented by all resources' list object.
@@ -109,12 +112,6 @@ type ObjectList interface {
 // at the server.
 type MultiVersionObject interface {
 	RegisterConversions() func(s *runtime.Scheme) error
-}
-
-// ObjectWithSpec defines an interface for getting and setting the spec for a resource.
-type ObjectWithSpec interface {
-	Object
-	GetSpec() (spec SpecResource)
 }
 
 // ObjectWithStatusSubResource defines an interface for getting and setting the status sub-resource for a resource.
