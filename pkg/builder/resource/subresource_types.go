@@ -16,13 +16,6 @@ limitations under the License.
 
 package resource
 
-import (
-	"net/url"
-
-	"k8s.io/apiserver/pkg/registry/rest"
-	"github.com/henderiw/apiserver-builder/pkg/builder/resource/resourcerest"
-)
-
 // SubResource defines interface for registering arbitrary subresource to the parent resource.
 type SubResource interface {
 	SubResourceName() string
@@ -39,9 +32,10 @@ type StatusSubResource interface {
 // ArbitrarySubResource defines required methods for extending a new custom subresource.
 type ArbitrarySubResource interface {
 	SubResource
-	rest.Storage
+	//rest.Storage
 }
 
+/*
 // ConnectorSubResource defines required methods for implementing a connector subresource.
 type ConnectorSubResource interface {
 	ArbitrarySubResource
@@ -60,3 +54,4 @@ type GetterUpdaterSubResource interface {
 type QueryParameterObject interface {
 	ConvertFromUrlValues(values *url.Values) error
 }
+*/

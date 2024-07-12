@@ -1,7 +1,7 @@
 package builder
 
 import (
-	"github.com/henderiw/apiserver-builder/pkg/cmd/apiserverbuilder"
+	"github.com/henderiw/apiserver-builder/pkg/cmd/apiserverbuilder/options"
 	"github.com/spf13/cobra"
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/apiserver/pkg/server"
@@ -13,7 +13,7 @@ import (
 type GenericAPIServer = server.GenericAPIServer
 
 // ServerOptions is an alias for apiserverbuilder.ServerOptions
-type ServerOptions = apiserverbuilder.ServerOptions
+type ServerOptions = options.ServerOptions
 
 // OpenAPIDefinition is an alias for common.OpenAPIDefinition
 type OpenAPIDefinition = common.OpenAPIDefinition

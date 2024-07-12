@@ -3,9 +3,12 @@ package builder
 import (
 	"context"
 	"flag"
+	"fmt"
 	"os"
 
+	"github.com/henderiw/apiserver-builder/pkg/apiserver"
 	"github.com/henderiw/apiserver-builder/pkg/cmd/apiserverbuilder"
+	"github.com/henderiw/apiserver-builder/pkg/cmd/apiserverbuilder/options"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -30,13 +33,13 @@ type Server struct {
 }
 
 // Build returns a Command used to run the apiserver
-func (r *Server) Build(ctx context.Context) (*Command, error) {
-	apiserverbuilder.EtcdPath = r.EtcdPath
-	r.schemes = append(r.schemes, apiserverbuilder.Scheme)
+func (r *Server) build(ctx context.Context) (*Command, error) {
+	options.EtcdPath = r.EtcdPath
+	r.schemes = append(r.schemes, apiserver.Scheme)
 	r.schemeBuilder.Register(
 		func(scheme *runtime.Scheme) error {
 			groupVersions := make(map[string]sets.Set[string])
-			for gvr := range apiserverbuilder.APIs {
+			for gvr := range apiserver.APIs {
 				if groupVersions[gvr.Group] == nil {
 					groupVersions[gvr.Group] = sets.New[string]()
 				}
@@ -45,6 +48,10 @@ func (r *Server) Build(ctx context.Context) (*Command, error) {
 			for g, versions := range groupVersions {
 				gvs := []schema.GroupVersion{}
 				for v := range versions {
+					// ignore internal version for priority setting
+					if v == runtime.APIVersionInternal {
+						continue
+					}
 					gvs = append(gvs, schema.GroupVersion{
 						Group:   g,
 						Version: v,
@@ -67,19 +74,27 @@ func (r *Server) Build(ctx context.Context) (*Command, error) {
 		}
 	}
 
+	// debug
+	for _, scheme := range r.schemes {
+		for gvk, v := range scheme.AllKnownTypes() {
+			fmt.Println("scheme", "gvk", gvk, v)
+		}
+	}
+
+
 	if len(r.errs) != 0 {
 		return nil, errs{list: r.errs}
 	}
-	o := apiserverbuilder.NewServerOptions(os.Stdout, os.Stderr, r.orderedGroupVersions...)
+	o := options.NewServerOptions(os.Stdout, os.Stderr, r.orderedGroupVersions...)
 	cmd := apiserverbuilder.NewCommandStartServer(ctx, r.ServerName, o)
-	apiserverbuilder.ApplyFlagsFns(cmd.Flags())
+	options.ApplyFlagsFns(cmd.Flags())
 	cmd.Flags().AddGoFlagSet(flag.CommandLine)
 	return cmd, nil
 }
 
 // Execute builds and executes the apiserver Command.
 func (r *Server) Execute(ctx context.Context) error {
-	cmd, err := r.Build(ctx)
+	cmd, err := r.build(ctx)
 	if err != nil {
 		return err
 	}

@@ -1,18 +1,25 @@
 package rest
 
 import (
-	"context"
-
-	"github.com/henderiw/apiserver-builder/pkg/cmd/apiserverbuilder"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apiserver/pkg/registry/generic"
+	genericregistry "k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/registry/rest"
-	contextutil "github.com/henderiw/apiserver-builder/pkg/util/context"
 )
 
+type ResourceStorageProviderFn func(scheme *runtime.Scheme, getter genericregistry.RESTOptionsGetter) (rest.Storage, error)
+
+type SubResourceStorageProviderFn func(scheme *runtime.Scheme, store rest.Storage) (rest.Storage, error)
+
+type StorageProvider struct {
+	//Obj                                  resource.Object
+	ResourceStorageProviderFn            ResourceStorageProviderFn
+	StatusSubResourceStorageProviderFn   SubResourceStorageProviderFn
+	ArbitrarySubresourceHandlerProviders map[string]SubResourceStorageProviderFn
+}
+
+/*
 // ResourceHandlerProvider provides a request handler for a resource
-type ResourceHandlerProvider = apiserverbuilder.StorageProvider
+type ResourceHandlerProvider = apiserver.StorageProvider
 
 // StaticHandlerProvider returns itself as the request handler.
 type StaticHandlerProvider struct { // TODO: privatize
@@ -20,7 +27,7 @@ type StaticHandlerProvider struct { // TODO: privatize
 }
 
 // Get returns itself as the handler
-func (p StaticHandlerProvider) Get(ctx context.Context, s *runtime.Scheme, g generic.RESTOptionsGetter) (rest.Storage, error) {
+func (p StaticHandlerProvider) Get(ctx context.Context, s *runtime.Scheme, g genericregistry.RESTOptionsGetter) (rest.Storage, error) {
 	return p.Storage, nil
 }
 
@@ -32,7 +39,7 @@ type ParentStaticHandlerProvider struct {
 }
 
 // Get returns itself as the handler
-func (p ParentStaticHandlerProvider) Get(ctx context.Context, s *runtime.Scheme, g generic.RESTOptionsGetter) (rest.Storage, error) {
+func (p ParentStaticHandlerProvider) Get(ctx context.Context, s *runtime.Scheme, g genericregistry.RESTOptionsGetter) (rest.Storage, error) {
 	parentStorage, err := p.ParentProvider(ctx, s, g)
 	if err != nil {
 		return nil, err
@@ -105,3 +112,4 @@ func (p parentPlumbedStorageGetterUpdaterProvider) Update(
 		forceAllowCreate,
 		options)
 }
+*/

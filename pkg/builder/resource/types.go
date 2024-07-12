@@ -17,7 +17,11 @@ limitations under the License.
 package resource
 
 import (
+	"context"
+
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/apiserver/pkg/registry/rest"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,20 +55,48 @@ type Object interface {
 	// for the API group an alias to this object.
 	// If false, the resource is expected to implement MultiVersionObject interface.
 	IsStorageVersion() bool
+}
 
-	// GetSingularName
+type InternalObject interface {
+	Object
+
+	// GetSingularName return the singular name of the resource
 	GetSingularName() string
 
-	// GetShortNames
+	// GetShortNames retruns the short names for the resource
 	GetShortNames() []string
 
-	// GetCategories
+	// GetCategories returns the categories of the resource
 	GetCategories() []string
 
-	// NamespaceScoped
+	// NamespaceScoped returns if the resource is namespaced or not
 	NamespaceScoped() bool
 
+	// TableConvertor return the table convertor interface
 	TableConvertor() func(gr schema.GroupResource) rest.TableConvertor
+
+	// FieldLabelConversion returns the field conversion function
+	FieldLabelConversion() runtime.FieldLabelConversionFunc
+
+	// FieldSelector returns a function that is used to filter resources based on field selectors
+	FieldSelector() func(ctx context.Context, fieldSelector fields.Selector) (Filter, error)
+
+	// PrepareForCreate prepares the resource for creation.
+	// e.g. sets status empty status
+	PrepareForCreate(ctx context.Context, obj runtime.Object)
+
+	// ValidateCreate return field errors on specific validation of the resource upon create
+	ValidateCreate(ctx context.Context, obj runtime.Object) field.ErrorList
+
+	// PrepareForUpdate prepares the resource for update.
+	// e.g. sets status empty status
+	PrepareForUpdate(ctx context.Context, obj, old runtime.Object)
+
+	// ValidateUpdate return field errors on specific validation of the resource upon update
+	ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList
+
+	// Is Equal compares the specification of the various objects
+	IsEqual(ctx context.Context, obj, old runtime.Object) bool
 }
 
 // ObjectList must be implemented by all resources' list object.
@@ -79,22 +111,24 @@ type ObjectList interface {
 // MultiVersionObject should be implemented if the resource is not storage version and has multiple versions serving
 // at the server.
 type MultiVersionObject interface {
-	// NewStorageVersionObject returns a new empty instance of storage version.
-	NewStorageVersionObject() runtime.Object
-
-	// ConvertToStorageVersion receives an new instance of storage version object as the conversion target
-	// and overwrites it to the equal form of the current resource version.
-	ConvertToStorageVersion(storageObj runtime.Object) error
-
-	// ConvertFromStorageVersion receives an instance of storage version as the conversion source and
-	// in-place mutates the current object to the equal form of the storage version object.
-	ConvertFromStorageVersion(storageObj runtime.Object) error
+	RegisterConversions() func(s *runtime.Scheme) error
 }
 
 // ObjectWithStatusSubResource defines an interface for getting and setting the status sub-resource for a resource.
 type ObjectWithStatusSubResource interface {
-	Object
+	InternalObject
+	// GetStatus returns the status subresource
 	GetStatus() (statusSubResource StatusSubResource)
+
+	// IsEqual validates if status subresources are equal
+	IsStatusEqual(ctx context.Context, obj, old runtime.Object) bool
+
+	// PrepareForUpdate prepares the resource for update.
+	// e.g. sets status empty status
+	PrepareForStatusUpdate(ctx context.Context, obj, old runtime.Object)
+
+	// ValidateStatusUpdate return field errors on specific validation of the resource upon update
+	ValidateStatusUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList
 }
 
 // ObjectWithScaleSubResource defines an interface for getting and setting the scale sub-resource for a resource.
@@ -108,4 +142,8 @@ type ObjectWithScaleSubResource interface {
 type ObjectWithArbitrarySubResource interface {
 	Object
 	GetArbitrarySubResources() []ArbitrarySubResource
+}
+
+type Filter interface {
+	Filter(ctx context.Context, obj runtime.Object) bool
 }
