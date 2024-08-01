@@ -40,9 +40,7 @@ func NewServerOptions(out, errOut io.Writer, versions ...schema.GroupVersion) *S
 
 // Complete fills in fields required to have valid data
 func (o *ServerOptions) Complete() error {
-
 	ApplyServerOptionsFns(o)
-
 	return nil
 }
 
