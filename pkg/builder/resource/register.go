@@ -2,7 +2,6 @@ package resource
 
 import (
 	"fmt"
-	"reflect"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource/resourcestrategy"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
@@ -26,7 +25,6 @@ func AddToScheme(objs ...Object) func(s *runtime.Scheme) error {
 					Group:   obj.GetGroupVersionResource().Group,
 					Version: runtime.APIVersionInternal,
 				}, obj.New(), obj.NewList())
-				fmt.Println("AddToScheme storageVersion", obj.GetGroupVersionResource().GroupVersion().String(), obj, reflect.TypeOf(obj.New()).Name())
 			} else {
 				multiVersionObj, ok := obj.(MultiVersionObject)
 				if !ok {
@@ -44,7 +42,6 @@ func AddToScheme(objs ...Object) func(s *runtime.Scheme) error {
 			// register subresources
 			if objWithStatus, ok := obj.(ObjectWithStatusSubResource); ok {
 				if statusObj, ok := objWithStatus.GetStatus().(runtime.Object); ok {
-					// WIMCHECK IS THIS RELECTING /status
 					s.AddKnownTypes(obj.GetGroupVersionResource().GroupVersion(), statusObj)
 				}
 			}

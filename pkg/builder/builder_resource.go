@@ -1,8 +1,6 @@
 package builder
 
 import (
-	"fmt"
-
 	"github.com/henderiw/apiserver-builder/pkg/apiserver"
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-builder/pkg/builder/rest"
@@ -69,11 +67,11 @@ func (a *Server) forGroupVersionResource(gvr schema.GroupVersionResource, sp *re
 	// TODO: make sure folks don't register multiple storageProvider instance for the same group-resource
 	// don't replace the existing instance otherwise it will chain wrapped singletonProviders when
 	// fetching from the map before calling this function
-	if _, found := a.storageProvider[gvr.GroupResource()]; !found {
-		a.storageProvider[gvr.GroupResource()] = &singletonProvider{Provider: sp}
+	if _, found := a.StorageProvider[gvr.GroupResource()]; !found {
+		a.StorageProvider[gvr.GroupResource()] = &SingletonProvider{Provider: sp}
 	}
 
-	fmt.Println("forGroupVersionResource", gvr.String(), sp)
+	//fmt.Println("forGroupVersionResource", gvr.String(), sp)
 	// add the API with its storageProvider
 	apiserver.APIs[gvr] = sp
 	return a

@@ -3,7 +3,6 @@ package builder
 import (
 	"context"
 	"flag"
-	"fmt"
 	"os"
 
 	"github.com/henderiw/apiserver-builder/pkg/apiserver"
@@ -17,7 +16,7 @@ import (
 
 // APIServer builds an apiserver to server Kubernetes resources and sub resources.
 var APIServer = &Server{
-	storageProvider: map[schema.GroupResource]*singletonProvider{},
+	StorageProvider: map[schema.GroupResource]*SingletonProvider{},
 }
 
 // Server builds a new apiserver for a single API group
@@ -25,17 +24,17 @@ type Server struct {
 	ServerName           string
 	EtcdPath             string
 	errs                 []error
-	storageProvider      map[schema.GroupResource]*singletonProvider
+	StorageProvider      map[schema.GroupResource]*SingletonProvider
 	groupVersions        map[schema.GroupVersion]bool
 	orderedGroupVersions []schema.GroupVersion
-	schemes              []*runtime.Scheme
+	Schemes              []*runtime.Scheme
 	schemeBuilder        runtime.SchemeBuilder
 }
 
 // Build returns a Command used to run the apiserver
-func (r *Server) build(ctx context.Context) (*Command, error) {
+func (r *Server) Build(ctx context.Context) (*Command, error) {
 	options.EtcdPath = r.EtcdPath
-	r.schemes = append(r.schemes, apiserver.Scheme)
+	r.Schemes = append(r.Schemes, apiserver.Scheme)
 	r.schemeBuilder.Register(
 		func(scheme *runtime.Scheme) error {
 			groupVersions := make(map[string]sets.Set[string])
@@ -68,19 +67,20 @@ func (r *Server) build(ctx context.Context) (*Command, error) {
 			return nil
 		},
 	)
-	for i := range r.schemes {
-		if err := r.schemeBuilder.AddToScheme(r.schemes[i]); err != nil {
+	for i := range r.Schemes {
+		if err := r.schemeBuilder.AddToScheme(r.Schemes[i]); err != nil {
 			panic(err)
 		}
 	}
 
 	// debug
-	for _, scheme := range r.schemes {
-		for gvk, v := range scheme.AllKnownTypes() {
-			fmt.Println("scheme", "gvk", gvk, v)
+	/*
+		for _, scheme := range r.schemes {
+			for gvk, v := range scheme.AllKnownTypes() {
+				fmt.Println("scheme", "gvk", gvk, v)
+			}
 		}
-	}
-
+	*/
 
 	if len(r.errs) != 0 {
 		return nil, errs{list: r.errs}
@@ -94,7 +94,7 @@ func (r *Server) build(ctx context.Context) (*Command, error) {
 
 // Execute builds and executes the apiserver Command.
 func (r *Server) Execute(ctx context.Context) error {
-	cmd, err := r.build(ctx)
+	cmd, err := r.Build(ctx)
 	if err != nil {
 		return err
 	}
