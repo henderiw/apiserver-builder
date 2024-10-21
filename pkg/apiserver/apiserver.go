@@ -14,6 +14,7 @@ import (
 	genericregistry "k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/apiserver/pkg/server"
+	utilversion "k8s.io/apiserver/pkg/util/version"
 )
 
 var (
@@ -79,12 +80,9 @@ func (cfg *Config) Complete() CompletedConfig {
 		cfg.GenericConfig.Complete(),
 		&cfg.ExtraConfig,
 	}
-	/*
-		c.GenericConfig. = &version.Info{
-			Major: "1",
-			Minor: "0",
-		}
-	*/
+
+	c.GenericConfig.EffectiveVersion = utilversion.NewEffectiveVersion("")
+
 	return CompletedConfig{&c}
 }
 
