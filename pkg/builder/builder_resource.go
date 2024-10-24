@@ -1,6 +1,9 @@
 package builder
 
 import (
+	"fmt"
+	"reflect"
+
 	"github.com/henderiw/apiserver-builder/pkg/apiserver"
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource"
 	"github.com/henderiw/apiserver-builder/pkg/builder/rest"
@@ -36,6 +39,7 @@ func (r *Server) WithResource(obj resource.Object) *Server {
 func (r *Server) WithResourceAndHandler(obj resource.Object, sp *rest.StorageProvider) *Server {
 	gvr := obj.GetGroupVersionResource()
 	r.schemeBuilder.Register(resource.AddToScheme(obj))
+	fmt.Println("WithResourceAndHandler", gvr, reflect.TypeOf(obj).Name())
 	return r.forGroupVersionResource(gvr, sp)
 }
 

@@ -3,6 +3,7 @@ package builder
 import (
 	"context"
 	"flag"
+	"fmt"
 	"os"
 
 	"github.com/henderiw/apiserver-builder/pkg/apiserver"
@@ -74,13 +75,11 @@ func (r *Server) Build(ctx context.Context) (*Command, error) {
 	}
 
 	// debug
-	/*
-		for _, scheme := range r.schemes {
-			for gvk, v := range scheme.AllKnownTypes() {
-				fmt.Println("scheme", "gvk", gvk, v)
-			}
+	for _, scheme := range r.Schemes {
+		for gvk, v := range scheme.AllKnownTypes() {
+			fmt.Println("scheme", "gvk", gvk, v)
 		}
-	*/
+	}
 
 	if len(r.errs) != 0 {
 		return nil, errs{list: r.errs}
