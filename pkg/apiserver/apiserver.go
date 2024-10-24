@@ -140,7 +140,6 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 				if err != nil {
 					return nil, err
 				}
-				fmt.Println("BuildAPIGroupInfos", group, gvr.Version, gvr.Resource, storage)
 
 				apis[gvr.Version][gvr.Resource] = storage
 				// add the defaulting function for this version to the scheme
@@ -159,7 +158,6 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 					}
 					apis[gvr.Version][gvr.Resource+"/"+"status"] = statusstorage
 
-					fmt.Println("BuildAPIGroupInfos", group, gvr.Version, gvr.Resource+"/status", statusstorage)
 				}
 				// register the arbitray subresource stores if exists
 				for subResourcename, storageProviderFn := range storageHandler.ArbitrarySubresourceHandlerProviders {
@@ -169,8 +167,6 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 							return nil, err
 						}
 						apis[gvr.Version][gvr.Resource+"/"+subResourcename] = subResourceStorage
-
-						fmt.Println("BuildAPIGroupInfos", group, gvr.Version, gvr.Resource+"/"+subResourcename, subResourceStorage)
 					}
 				}
 			}
