@@ -102,6 +102,7 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 	// Add new APIs through inserting into APIs
 	apiGroups, err := BuildAPIGroupInfos(ctx, Scheme, c.GenericConfig.RESTOptionsGetter)
 	if err != nil {
+		fmt.Println("BuildAPIGroupInfos", err)
 		return nil, err
 	}
 	for _, apiGroupInfo := range apiGroups {
