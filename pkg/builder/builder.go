@@ -19,6 +19,12 @@ var APIServer = &Server{
 	StorageProvider: map[schema.GroupResource]*SingletonProvider{},
 }
 
+func NewAPIServer() *Server {
+	return &Server{
+		StorageProvider: map[schema.GroupResource]*SingletonProvider{},
+	}
+}
+
 // Server builds a new apiserver for a single API group
 type Server struct {
 	ServerName           string
