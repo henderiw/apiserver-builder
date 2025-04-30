@@ -14,7 +14,7 @@ import (
 	genericregistry "k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/apiserver/pkg/server"
-	utilversion "k8s.io/apiserver/pkg/util/version"
+	basecompatibility "k8s.io/component-base/compatibility"
 )
 
 var (
@@ -32,7 +32,10 @@ var (
 )
 
 func init() {
-	metav1.AddMetaToScheme(ParameterScheme)
+	err := metav1.AddMetaToScheme(ParameterScheme)
+	if err != nil {
+		panic(err)
+	}
 
 	// we need to add the options to empty v1
 	// TODO fix the server code to avoid this
@@ -76,7 +79,7 @@ type CompletedConfig struct {
 
 // Complete fills in any fields not set that are required to have valid data. It's mutating the receiver.
 func (cfg *Config) Complete() CompletedConfig {
-	cfg.GenericConfig.EffectiveVersion = utilversion.NewEffectiveVersion("")
+	cfg.GenericConfig.EffectiveVersion = basecompatibility.NewEffectiveVersionFromString("", "", "")
 	c := completedConfig{
 		cfg.GenericConfig.Complete(),
 		&cfg.ExtraConfig,
