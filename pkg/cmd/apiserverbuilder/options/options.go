@@ -65,7 +65,7 @@ func (o ServerOptions) RunServer(ctx context.Context, serverName string) error {
 
 	server.GenericAPIServer.AddPostStartHookOrDie(fmt.Sprintf("start-%s-informers", serverName), func(context genericapiserver.PostStartHookContext) error {
 		if config.GenericConfig.SharedInformerFactory != nil {
-			config.GenericConfig.SharedInformerFactory.Start(context.StopCh)
+			config.GenericConfig.SharedInformerFactory.Start(context.Done())
 		}
 		return nil
 	})
