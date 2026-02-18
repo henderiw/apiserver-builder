@@ -7,17 +7,25 @@ import (
 	"k8s.io/apiserver/pkg/server"
 	scheme "k8s.io/client-go/kubernetes/scheme"
 	openapicommon "k8s.io/kube-openapi/pkg/common"
+	apiextensionsopenapi "k8s.io/apiextensions-apiserver/pkg/generated/openapi"
 )
 
 func (r *Server) WithOpenAPIDefinitions(
 	name, version string,
 	defs openapicommon.GetOpenAPIDefinitions) *Server {
-	// set both openAPI definitions
+		mergedDefs := func(ref openapicommon.ReferenceCallback) map[string]openapicommon.OpenAPIDefinition {
+			result := apiextensionsopenapi.GetOpenAPIDefinitions(ref)
+			for k, v := range defs(ref) {
+				result[k] = v
+			}
+			return result
+		}
+
 	options.RecommendedConfigFns = append(options.RecommendedConfigFns, func(config *server.RecommendedConfig) *server.RecommendedConfig {
-		config.OpenAPIConfig = server.DefaultOpenAPIConfig(defs, openapinamer.NewDefinitionNamer(apiserver.Scheme, scheme.Scheme))
+		config.OpenAPIConfig = server.DefaultOpenAPIConfig(mergedDefs, openapinamer.NewDefinitionNamer(apiserver.Scheme, scheme.Scheme))
 		config.OpenAPIConfig.Info.Title = name
 		config.OpenAPIConfig.Info.Version = version
-		config.OpenAPIV3Config = server.DefaultOpenAPIV3Config(defs, openapinamer.NewDefinitionNamer(apiserver.Scheme, scheme.Scheme))
+		config.OpenAPIV3Config = server.DefaultOpenAPIV3Config(mergedDefs, openapinamer.NewDefinitionNamer(apiserver.Scheme, scheme.Scheme))
 		config.OpenAPIV3Config.Info.Title = name
 		config.OpenAPIV3Config.Info.Version = version
 		return config
