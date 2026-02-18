@@ -16,7 +16,6 @@ import (
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/apiserver/pkg/server"
 	basecompatibility "k8s.io/component-base/compatibility"
-	"github.com/henderiw/apiserver-builder/pkg/openapi"
 	openapiutil "k8s.io/kube-openapi/pkg/util"
 )
 
@@ -112,7 +111,6 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 	}
 
 	for _, apiGroupInfo := range apiGroups {
-		// Print what canonical names getOpenAPIModels will look up
 		for _, gv := range apiGroupInfo.PrioritizedVersions {
 			for resource, storage := range apiGroupInfo.VersionedResourcesStorageMap[gv.Version] {
 				obj := storage.New()
@@ -124,23 +122,6 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 			return nil, err
 		}
 		fmt.Printf("DEBUG: StaticOpenAPISpec after install, count=%d\n", len(apiGroupInfo.StaticOpenAPISpec))
-	}
-
-	for _, apiGroupInfo := range apiGroups {
-		if openapi.GlobalOpenAPISchemas != nil {
-			apiGroupInfo.StaticOpenAPISpec = openapi.GlobalOpenAPISchemas
-		}
-
-		fmt.Printf("DEBUG: openAPIV3Config nil: %v\n", c.GenericConfig.OpenAPIV3Config == nil)
-		fmt.Printf("DEBUG: openAPIV3Config apiGroupInfo: %v\n",apiGroupInfo)
-
-
-		if err := s.GenericAPIServer.InstallAPIGroup(apiGroupInfo); err != nil {
-			return nil, err
-		}
-
-		// After install, check what StaticOpenAPISpec contains
-		fmt.Printf("DEBUG: StaticOpenAPISpec keys count: %d\n", len(apiGroupInfo.StaticOpenAPISpec))
 		for k := range apiGroupInfo.StaticOpenAPISpec {
 			if strings.Contains(k, "config") || strings.Contains(k, "sdcio") {
 				fmt.Printf("DEBUG: spec key: %s\n", k)
