@@ -118,6 +118,12 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 				fmt.Printf("DEBUG: resource=%s canonical=%s\n", resource, name)
 			}
 		}
+		for gvk, t := range Scheme.AllKnownTypes() {
+			if strings.Contains(gvk.Group, "sdcio") {
+				fmt.Printf("DEBUG scheme: gvk=%v type=%v\n", gvk, t)
+			}
+		}
+
 		if err := s.GenericAPIServer.InstallAPIGroup(apiGroupInfo); err != nil {
 			return nil, err
 		}
