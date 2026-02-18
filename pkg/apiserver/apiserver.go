@@ -176,7 +176,7 @@ func (v *versionedStorage) ShortNames() []string {
 	return nil
 }
 
-func (v *versionedStorage) GetCategories() []string {
+func (v *versionedStorage) Categories() []string {
 	if s, ok := v.Storage.(rest.CategoriesProvider); ok {
 		return s.Categories()
 	}
