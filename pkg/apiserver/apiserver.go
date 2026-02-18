@@ -183,6 +183,10 @@ func (v *versionedStorage) Categories() []string {
 	return nil
 }
 
+func (v *versionedStorage) Destroy() {
+    v.Storage.Destroy()
+}
+
 func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistry.RESTOptionsGetter) ([]*server.APIGroupInfo, error) {
 	resourcesByGroupVersion := make(map[schema.GroupVersion]sets.Set[string])
 	groups := sets.New[string]()
