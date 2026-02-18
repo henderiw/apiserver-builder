@@ -7,19 +7,12 @@ import (
 	"net"
 
 	"github.com/henderiw/apiserver-builder/pkg/apiserver"
-	"github.com/henderiw/apiserver-builder/pkg/openapi"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-	managedfields "k8s.io/apimachinery/pkg/util/managedfields"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
-	openapicommon "k8s.io/kube-openapi/pkg/common"
-	"k8s.io/kube-openapi/pkg/validation/spec"
 )
-
-// GlobalOpenAPIDefs holds the merged OpenAPI definitions set by WithOpenAPIDefinitions.
-var GlobalOpenAPIDefs openapicommon.GetOpenAPIDefinitions
 
 type ServerOptions struct {
 	RecommendedOptions *genericoptions.RecommendedOptions
@@ -63,21 +56,6 @@ func (o ServerOptions) RunServer(ctx context.Context, serverName string) error {
 	config, err := o.Config(serverName)
 	if err != nil {
 		return err
-	}
-
-	// Build TypeConverter from merged OpenAPI definitions for SSA support
-	if GlobalOpenAPIDefs != nil {
-		schemas := map[string]*spec.Schema{}
-		defs := GlobalOpenAPIDefs(func(path string) spec.Ref {
-			return spec.MustCreateRef("#/definitions/" + path)
-		})
-		for name, def := range defs {
-			d := def.Schema
-			schemas[name] = &d
-		}
-		if tc, err := managedfields.NewTypeConverter(schemas, false); err == nil {
-			openapi.GlobalTypeConverter = tc
-		}
 	}
 
 	server, err := config.Complete().New(ctx)

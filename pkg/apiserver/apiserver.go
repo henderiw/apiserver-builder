@@ -3,8 +3,8 @@ package apiserver
 import (
 	"context"
 	"fmt"
-	"strings"
 
+	"github.com/henderiw/apiserver-builder/pkg/builder/resource/resourcestrategy"
 	restbuilder "github.com/henderiw/apiserver-builder/pkg/builder/rest"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -15,7 +15,6 @@ import (
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/apiserver/pkg/server"
 	basecompatibility "k8s.io/component-base/compatibility"
-	openapiutil "k8s.io/kube-openapi/pkg/util"
 )
 
 var (
@@ -108,167 +107,72 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	for _, apiGroupInfo := range apiGroups {
-		for _, gv := range apiGroupInfo.PrioritizedVersions {
-			for resource, storage := range apiGroupInfo.VersionedResourcesStorageMap[gv.Version] {
-				obj := storage.New()
-				name := openapiutil.GetCanonicalTypeName(obj)
-				fmt.Printf("DEBUG: resource=%s canonical=%s\n", resource, name)
-			}
-		}
-		for gvk, t := range Scheme.AllKnownTypes() {
-			if strings.Contains(gvk.Group, "sdcio") {
-				fmt.Printf("DEBUG scheme: gvk=%v type=%v\n", gvk, t)
-			}
-		}
-
 		if err := s.GenericAPIServer.InstallAPIGroup(apiGroupInfo); err != nil {
 			return nil, err
-		}
-		fmt.Printf("DEBUG: StaticOpenAPISpec after install, count=%d\n", len(apiGroupInfo.StaticOpenAPISpec))
-		for k := range apiGroupInfo.StaticOpenAPISpec {
-			if strings.Contains(k, "config") || strings.Contains(k, "sdcio") {
-				fmt.Printf("DEBUG: spec key: %s\n", k)
-			}
 		}
 	}
 
 	return s, nil
 }
 
-// versionedStorage wraps storage so New() returns a versioned object,
-// ensuring getOpenAPIModels gets versioned canonical names matching OpenAPI defs.
-type versionedStorage struct {
-	rest.Storage
-	newObj runtime.Object
-}
-
-func (v *versionedStorage) New() runtime.Object {
-	return v.newObj.DeepCopyObject()
-}
-
-func (v *versionedStorage) NamespaceScoped() bool {
-	if s, ok := v.Storage.(rest.Scoper); ok {
-		return s.NamespaceScoped()
-	}
-	return true
-}
-
-func (v *versionedStorage) GetSingularName() string {
-	if s, ok := v.Storage.(rest.SingularNameProvider); ok {
-		return s.GetSingularName()
-	}
-	return ""
-}
-
-func (v *versionedStorage) NewList() runtime.Object {
-	if s, ok := v.Storage.(rest.Lister); ok {
-		return s.NewList()
-	}
-	return nil
-}
-
-func (v *versionedStorage) ShortNames() []string {
-	if s, ok := v.Storage.(rest.ShortNamesProvider); ok {
-		return s.ShortNames()
-	}
-	return nil
-}
-
-func (v *versionedStorage) Categories() []string {
-	if s, ok := v.Storage.(rest.CategoriesProvider); ok {
-		return s.Categories()
-	}
-	return nil
-}
-
-func (v *versionedStorage) Destroy() {
-    v.Storage.Destroy()
-}
-
 func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistry.RESTOptionsGetter) ([]*server.APIGroupInfo, error) {
+	resourcesByGroupVersion := make(map[schema.GroupVersion]sets.Set[string])
 	groups := sets.New[string]()
 	for gvr := range APIs {
 		groups.Insert(gvr.Group)
+		if resourcesByGroupVersion[gvr.GroupVersion()] == nil {
+			resourcesByGroupVersion[gvr.GroupVersion()] = sets.New[string]()
+		}
+		resourcesByGroupVersion[gvr.GroupVersion()].Insert(gvr.Resource)
 	}
 	apiGroups := []*server.APIGroupInfo{}
 	for _, group := range sets.List[string](groups) {
-
 		apis := map[string]map[string]rest.Storage{}
 		for gvr, storageHandler := range APIs {
-			if gvr.Group != group || gvr.Version == runtime.APIVersionInternal {
-				continue
-			}
-			if _, found := apis[gvr.Version]; !found {
-				apis[gvr.Version] = map[string]rest.Storage{}
-			}
-
-			// register the resource store
-			if storageHandler.ResourceStorageProviderFn == nil {
-				return nil, fmt.Errorf("gvr %s has no storageprovider registered", gvr.String())
-			}
-			storage, err := storageHandler.ResourceStorageProviderFn(s, g)
-			if err != nil {
-				return nil, err
-			}
-
-			// Keep original storage for status/subresource providers which need *registry.Store
-			originalStorage := storage
-
-
-			// Find the versioned GVK by looking up the internal type in the scheme
-			versionedGVK := schema.GroupVersionKind{Group: gvr.Group, Version: gvr.Version}
-			if gvks, _, err := s.ObjectKinds(storage.New()); err == nil {
-				for _, gvk := range gvks {
-					if gvk.Version == runtime.APIVersionInternal {
-						versionedGVK.Kind = gvk.Kind
-						break
-					}
+			if gvr.Group == group {
+				if _, found := apis[gvr.Version]; !found {
+					apis[gvr.Version] = map[string]rest.Storage{}
 				}
-			}
 
-			// Wrap storage so New() returns versioned type for correct OpenAPI canonical names
-			if versionedGVK.Kind != "" {
-				if versionedObj, err := s.New(versionedGVK); err == nil {
-					storage = &versionedStorage{Storage: storage, newObj: versionedObj}
+				// register the resource store
+				if storageHandler.ResourceStorageProviderFn == nil {
+					return nil, fmt.Errorf("gvr %s has no storageprovider registered", gvr.String())
 				}
-			}
-			apis[gvr.Version][gvr.Resource] = storage
-
-
-			// ... defaulting func ...
-
-			// Use originalStorage for status/subresource providers (need *registry.Store)
-			if storageHandler.StatusSubResourceStorageProviderFn != nil {
-				statusStorage, err := storageHandler.StatusSubResourceStorageProviderFn(s, originalStorage)
+				storage, err := storageHandler.ResourceStorageProviderFn(s, g)
 				if err != nil {
 					return nil, err
 				}
-				// Wrap status storage too for versioned canonical names
-				if versionedGVK.Kind != "" {
-					if versionedObj, err := s.New(versionedGVK); err == nil {
-						statusStorage = &versionedStorage{Storage: statusStorage, newObj: versionedObj}
+
+				apis[gvr.Version][gvr.Resource] = storage
+				// add the defaulting function for this version to the scheme
+				if _, ok := storage.(resourcestrategy.Defaulter); ok {
+					if obj, ok := storage.(runtime.Object); ok {
+						s.AddTypeDefaultingFunc(obj, func(obj interface{}) {
+							obj.(resourcestrategy.Defaulter).Default()
+						})
 					}
 				}
-				apis[gvr.Version][gvr.Resource+"/status"] = statusStorage
-			}
-			for subResourceName, storageProviderFn := range storageHandler.ArbitrarySubresourceHandlerProviders {
-				if storageProviderFn == nil {
-					continue
+				// register the status subresource store if exists
+				if storageHandler.StatusSubResourceStorageProviderFn != nil {
+					statusstorage, err := storageHandler.StatusSubResourceStorageProviderFn(s, storage)
+					if err != nil {
+						return nil, err
+					}
+					apis[gvr.Version][gvr.Resource+"/"+"status"] = statusstorage
+
 				}
-				subResourceStorage, err := storageProviderFn(s, originalStorage)
-				if err != nil {
-					return nil, err
-				}
-				if versionedGVK.Kind != "" {
-					if versionedObj, err := s.New(versionedGVK); err == nil {
-						subResourceStorage = &versionedStorage{Storage: subResourceStorage, newObj: versionedObj}
+				// register the arbitray subresource stores if exists
+				for subResourcename, storageProviderFn := range storageHandler.ArbitrarySubresourceHandlerProviders {
+					if storageProviderFn != nil {
+						subResourceStorage, err := storageProviderFn(s, storage)
+						if err != nil {
+							return nil, err
+						}
+						apis[gvr.Version][gvr.Resource+"/"+subResourcename] = subResourceStorage
 					}
 				}
-				apis[gvr.Version][gvr.Resource+"/"+subResourceName] = subResourceStorage
 			}
-			
 		}
 		apiGroupInfo := server.NewDefaultAPIGroupInfo(group, Scheme, ParameterCodec, Codecs)
 		apiGroupInfo.VersionedResourcesStorageMap = apis

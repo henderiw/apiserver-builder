@@ -3,25 +3,25 @@ package builder
 import (
 	"github.com/henderiw/apiserver-builder/pkg/apiserver"
 	"github.com/henderiw/apiserver-builder/pkg/cmd/apiserverbuilder/options"
-	apiextensionsopenapi "k8s.io/apiextensions-apiserver/pkg/generated/openapi"
 	openapinamer "k8s.io/apiserver/pkg/endpoints/openapi"
 	"k8s.io/apiserver/pkg/server"
 	scheme "k8s.io/client-go/kubernetes/scheme"
 	openapicommon "k8s.io/kube-openapi/pkg/common"
+	apiextensionsopenapi "k8s.io/apiextensions-apiserver/pkg/generated/openapi"
 )
 
 func (r *Server) WithOpenAPIDefinitions(
 	name, version string,
 	defs openapicommon.GetOpenAPIDefinitions) *Server {
-	mergedDefs := func(ref openapicommon.ReferenceCallback) map[string]openapicommon.OpenAPIDefinition {
-		result := apiextensionsopenapi.GetOpenAPIDefinitions(ref)
-		for k, v := range defs(ref) {
-			result[k] = v
+		mergedDefs := func(ref openapicommon.ReferenceCallback) map[string]openapicommon.OpenAPIDefinition {
+			result := apiextensionsopenapi.GetOpenAPIDefinitions(ref)
+			for k, v := range defs(ref) {
+				result[k] = v
+			}
+			return result
 		}
-		return result
-	}
 
-	options.GlobalOpenAPIDefs = mergedDefs
+		
 	options.RecommendedConfigFns = append(options.RecommendedConfigFns, func(config *server.RecommendedConfig) *server.RecommendedConfig {
 		config.OpenAPIConfig = server.DefaultOpenAPIConfig(mergedDefs, openapinamer.NewDefinitionNamer(apiserver.Scheme, scheme.Scheme))
 		config.OpenAPIConfig.Info.Title = name
