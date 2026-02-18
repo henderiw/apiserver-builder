@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/henderiw/apiserver-builder/pkg/builder/resource/resourcestrategy"
 	restbuilder "github.com/henderiw/apiserver-builder/pkg/builder/rest"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -177,10 +176,10 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 					return nil, err
 				}
 
-				// Wrap versioned storage so New() returns the versioned type.
-				// This ensures getOpenAPIModels gets versioned canonical names
-				// (e.g. apis/config/v1alpha1.Config) that match OpenAPI definition
-				// keys, rather than internal names (e.g. apis/config.Config).
+				// Keep original storage for status/subresource providers which need *registry.Store
+				originalStorage := storage
+
+				// Wrap versioned storage so New() returns the versioned type
 				if gvr.Version != runtime.APIVersionInternal {
 					internalObj := storage.New()
 					versionedGVK := schema.GroupVersionKind{
@@ -204,26 +203,19 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 
 				apis[gvr.Version][gvr.Resource] = storage
 
-				// add the defaulting function for this version to the scheme
-				if _, ok := storage.(resourcestrategy.Defaulter); ok {
-					if obj, ok := storage.(runtime.Object); ok {
-						s.AddTypeDefaultingFunc(obj, func(obj interface{}) {
-							obj.(resourcestrategy.Defaulter).Default()
-						})
-					}
-				}
-				// register the status subresource store if exists
+				// ... defaulting func ...
+
+				// Use originalStorage for status/subresource providers (need *registry.Store)
 				if storageHandler.StatusSubResourceStorageProviderFn != nil {
-					statusstorage, err := storageHandler.StatusSubResourceStorageProviderFn(s, storage)
+					statusstorage, err := storageHandler.StatusSubResourceStorageProviderFn(s, originalStorage)
 					if err != nil {
 						return nil, err
 					}
 					apis[gvr.Version][gvr.Resource+"/"+"status"] = statusstorage
 				}
-				// register the arbitrary subresource stores if exists
 				for subResourcename, storageProviderFn := range storageHandler.ArbitrarySubresourceHandlerProviders {
 					if storageProviderFn != nil {
-						subResourceStorage, err := storageProviderFn(s, storage)
+						subResourceStorage, err := storageProviderFn(s, originalStorage)
 						if err != nil {
 							return nil, err
 						}
