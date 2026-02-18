@@ -17,6 +17,7 @@ import (
 	"k8s.io/apiserver/pkg/server"
 	basecompatibility "k8s.io/component-base/compatibility"
 	"github.com/henderiw/apiserver-builder/pkg/openapi"
+	openapiutil "k8s.io/kube-openapi/pkg/util"
 )
 
 var (
@@ -109,6 +110,22 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	for _, apiGroupInfo := range apiGroups {
+		// Print what canonical names getOpenAPIModels will look up
+		for _, gv := range apiGroupInfo.PrioritizedVersions {
+			for resource, storage := range apiGroupInfo.VersionedResourcesStorageMap[gv.Version] {
+				obj := storage.New()
+				name := openapiutil.GetCanonicalTypeName(obj)
+				fmt.Printf("DEBUG: resource=%s canonical=%s\n", resource, name)
+			}
+		}
+		if err := s.GenericAPIServer.InstallAPIGroup(apiGroupInfo); err != nil {
+			return nil, err
+		}
+		fmt.Printf("DEBUG: StaticOpenAPISpec after install, count=%d\n", len(apiGroupInfo.StaticOpenAPISpec))
+	}
+
 	for _, apiGroupInfo := range apiGroups {
 		if openapi.GlobalOpenAPISchemas != nil {
 			apiGroupInfo.StaticOpenAPISpec = openapi.GlobalOpenAPISchemas
