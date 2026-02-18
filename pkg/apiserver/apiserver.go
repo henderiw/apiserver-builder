@@ -15,6 +15,7 @@ import (
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/apiserver/pkg/server"
 	basecompatibility "k8s.io/component-base/compatibility"
+	"github.com/henderiw/apiserver-builder/pkg/openapi"
 )
 
 var (
@@ -108,6 +109,9 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 		return nil, err
 	}
 	for _, apiGroupInfo := range apiGroups {
+		if openapi.GlobalOpenAPISchemas != nil {
+			apiGroupInfo.StaticOpenAPISpec = openapi.GlobalOpenAPISchemas
+		}
 		if err := s.GenericAPIServer.InstallAPIGroup(apiGroupInfo); err != nil {
 			return nil, err
 		}
