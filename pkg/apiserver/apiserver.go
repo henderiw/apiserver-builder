@@ -16,6 +16,9 @@ import (
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/apiserver/pkg/server"
 	basecompatibility "k8s.io/component-base/compatibility"
+
+	managedfields "k8s.io/apimachinery/pkg/util/managedfields"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 var (
@@ -112,7 +115,20 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 		if err := s.GenericAPIServer.InstallAPIGroup(apiGroupInfo); err != nil {
 			return nil, err
 		}
+
+		tc, tcErr := managedfields.NewTypeConverter(apiGroupInfo.StaticOpenAPISpec, false)
+		fmt.Printf("DEBUG: NewTypeConverter err=%v\n", tcErr)
+		if tcErr == nil {
+			gvk := schema.GroupVersionKind{Group: "config.sdcio.dev", Version: "v1alpha1", Kind: "Config"}
+			u := &unstructured.Unstructured{}
+			u.SetGroupVersionKind(gvk)
+			_, typedErr := tc.ObjectToTyped(u)
+			fmt.Printf("DEBUG: ObjectToTyped Config err=%v\n", typedErr)
+		}
 	}
+
+	
+
 
 	return s, nil
 }
