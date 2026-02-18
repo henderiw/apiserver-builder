@@ -138,6 +138,17 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 	return s, nil
 }
 
+// versionedStorage wraps storage so New() returns a versioned object,
+// ensuring getOpenAPIModels gets versioned canonical names matching OpenAPI defs.
+type versionedStorage struct {
+	rest.Storage
+	newObj runtime.Object
+}
+
+func (v *versionedStorage) New() runtime.Object {
+	return v.newObj.DeepCopyObject()
+}
+
 func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistry.RESTOptionsGetter) ([]*server.APIGroupInfo, error) {
 	resourcesByGroupVersion := make(map[schema.GroupVersion]sets.Set[string])
 	groups := sets.New[string]()
@@ -166,7 +177,33 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 					return nil, err
 				}
 
+				// Wrap versioned storage so New() returns the versioned type.
+				// This ensures getOpenAPIModels gets versioned canonical names
+				// (e.g. apis/config/v1alpha1.Config) that match OpenAPI definition
+				// keys, rather than internal names (e.g. apis/config.Config).
+				if gvr.Version != runtime.APIVersionInternal {
+					internalObj := storage.New()
+					versionedGVK := schema.GroupVersionKind{
+						Group:   gvr.Group,
+						Version: gvr.Version,
+					}
+					if gvks, _, err := s.ObjectKinds(internalObj); err == nil {
+						for _, gvk := range gvks {
+							if gvk.Version == runtime.APIVersionInternal {
+								versionedGVK.Kind = gvk.Kind
+								break
+							}
+						}
+					}
+					if versionedGVK.Kind != "" {
+						if versionedObj, err := s.New(versionedGVK); err == nil {
+							storage = &versionedStorage{Storage: storage, newObj: versionedObj}
+						}
+					}
+				}
+
 				apis[gvr.Version][gvr.Resource] = storage
+
 				// add the defaulting function for this version to the scheme
 				if _, ok := storage.(resourcestrategy.Defaulter); ok {
 					if obj, ok := storage.(runtime.Object); ok {
@@ -182,9 +219,8 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 						return nil, err
 					}
 					apis[gvr.Version][gvr.Resource+"/"+"status"] = statusstorage
-
 				}
-				// register the arbitray subresource stores if exists
+				// register the arbitrary subresource stores if exists
 				for subResourcename, storageProviderFn := range storageHandler.ArbitrarySubresourceHandlerProviders {
 					if storageProviderFn != nil {
 						subResourceStorage, err := storageProviderFn(s, storage)
@@ -198,16 +234,6 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 		}
 		apiGroupInfo := server.NewDefaultAPIGroupInfo(group, Scheme, ParameterCodec, Codecs)
 		apiGroupInfo.VersionedResourcesStorageMap = apis
-
-		// Remove internal version from PrioritizedVersions so getOpenAPIModels
-		// uses versioned canonical names that match OpenAPI definition keys
-		filteredVersions := make([]schema.GroupVersion, 0, len(apiGroupInfo.PrioritizedVersions))
-		for _, gv := range apiGroupInfo.PrioritizedVersions {
-			if gv.Version != runtime.APIVersionInternal {
-				filteredVersions = append(filteredVersions, gv)
-			}
-		}
-		apiGroupInfo.PrioritizedVersions = filteredVersions
 		apiGroups = append(apiGroups, &apiGroupInfo)
 	}
 	return apiGroups, nil
