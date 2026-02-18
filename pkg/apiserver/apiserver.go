@@ -148,6 +148,13 @@ func (v *versionedStorage) New() runtime.Object {
 	return v.newObj.DeepCopyObject()
 }
 
+func (v *versionedStorage) NamespaceScoped() bool {
+    if scoper, ok := v.Storage.(rest.Scoper); ok {
+        return scoper.NamespaceScoped()
+    }
+    return true // default to namespaced
+}
+
 func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistry.RESTOptionsGetter) ([]*server.APIGroupInfo, error) {
 	resourcesByGroupVersion := make(map[schema.GroupVersion]sets.Set[string])
 	groups := sets.New[string]()
