@@ -198,6 +198,16 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 		}
 		apiGroupInfo := server.NewDefaultAPIGroupInfo(group, Scheme, ParameterCodec, Codecs)
 		apiGroupInfo.VersionedResourcesStorageMap = apis
+
+		// Remove internal version from PrioritizedVersions so getOpenAPIModels
+		// uses versioned canonical names that match OpenAPI definition keys
+		filteredVersions := make([]schema.GroupVersion, 0, len(apiGroupInfo.PrioritizedVersions))
+		for _, gv := range apiGroupInfo.PrioritizedVersions {
+			if gv.Version != runtime.APIVersionInternal {
+				filteredVersions = append(filteredVersions, gv)
+			}
+		}
+		apiGroupInfo.PrioritizedVersions = filteredVersions
 		apiGroups = append(apiGroups, &apiGroupInfo)
 	}
 	return apiGroups, nil
