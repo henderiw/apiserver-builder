@@ -202,6 +202,9 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 		apis := map[string]map[string]rest.Storage{}
 		for gvr, storageHandler := range APIs {
 			if gvr.Group == group {
+				if gvr.Version == runtime.APIVersionInternal {
+					continue
+				}
 				if _, found := apis[gvr.Version]; !found {
 					apis[gvr.Version] = map[string]rest.Storage{}
 				}
