@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/sets"
 	genericregistry "k8s.io/apiserver/pkg/registry/generic"
+	genericregistryregistry "k8s.io/apiserver/pkg/registry/generic/registry"
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/apiserver/pkg/server"
 	basecompatibility "k8s.io/component-base/compatibility"
@@ -116,47 +117,15 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 	return s, nil
 }
 
-
-// versionedStorage wraps storage so New() returns a versioned object.
-// This ensures getOpenAPIModels gets versioned canonical names that match
-// the OpenAPI definition keys, which is required for SSA TypeConverter lookup.
 type versionedStorage struct {
-	rest.Storage
-	newObj runtime.Object
+    *genericregistryregistry.Store  // concrete type - all interface assertions pass through
+    newObj runtime.Object
 }
 
-func (v *versionedStorage) New() runtime.Object          { return v.newObj.DeepCopyObject() }
-func (v *versionedStorage) Destroy()                     { v.Storage.Destroy() }
-func (v *versionedStorage) NamespaceScoped() bool {
-	if s, ok := v.Storage.(rest.Scoper); ok {
-		return s.NamespaceScoped()
-	}
-	return true
+func (v *versionedStorage) New() runtime.Object {
+    return v.newObj.DeepCopyObject()
 }
-func (v *versionedStorage) GetSingularName() string {
-	if s, ok := v.Storage.(rest.SingularNameProvider); ok {
-		return s.GetSingularName()
-	}
-	return ""
-}
-func (v *versionedStorage) NewList() runtime.Object {
-	if s, ok := v.Storage.(rest.Lister); ok {
-		return s.NewList()
-	}
-	return nil
-}
-func (v *versionedStorage) ShortNames() []string {
-	if s, ok := v.Storage.(rest.ShortNamesProvider); ok {
-		return s.ShortNames()
-	}
-	return nil
-}
-func (v *versionedStorage) Categories() []string {
-	if s, ok := v.Storage.(rest.CategoriesProvider); ok {
-		return s.Categories()
-	}
-	return nil
-}
+
 
 func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistry.RESTOptionsGetter) ([]*server.APIGroupInfo, error) {
 	resourcesByGroupVersion := make(map[schema.GroupVersion]sets.Set[string])
@@ -175,7 +144,6 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 			if gvr.Group != group {
 				continue
 			}
-
 			if _, found := apis[gvr.Version]; !found {
 				apis[gvr.Version] = map[string]rest.Storage{}
 			}
@@ -189,21 +157,24 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 				return nil, err
 			}
 
-			// Wrap versioned storage so New() returns the versioned type.
-			// Internal GVRs are kept as-is for the conversion pipeline.
+			// Wrap versioned storage so New() returns versioned type for correct OpenAPI canonical names.
+			// Internal GVRs stay unwrapped for the conversion pipeline.
+			originalStorage := storage
 			if gvr.Version != runtime.APIVersionInternal {
-				versionedGVK := schema.GroupVersionKind{Group: gvr.Group, Version: gvr.Version}
-				if gvks, _, err := s.ObjectKinds(storage.New()); err == nil {
-					for _, gvk := range gvks {
-						if gvk.Version == runtime.APIVersionInternal {
-							versionedGVK.Kind = gvk.Kind
-							break
+				if store, ok := storage.(*genericregistryregistry.Store); ok {
+					versionedGVK := schema.GroupVersionKind{Group: gvr.Group, Version: gvr.Version}
+					if gvks, _, err := s.ObjectKinds(store.New()); err == nil {
+						for _, gvk := range gvks {
+							if gvk.Version == runtime.APIVersionInternal {
+								versionedGVK.Kind = gvk.Kind
+								break
+							}
 						}
 					}
-				}
-				if versionedGVK.Kind != "" {
-					if versionedObj, err := s.New(versionedGVK); err == nil {
-						storage = &versionedStorage{Storage: storage, newObj: versionedObj}
+					if versionedGVK.Kind != "" {
+						if versionedObj, err := s.New(versionedGVK); err == nil {
+							storage = &versionedStorage{Store: store, newObj: versionedObj}
+						}
 					}
 				}
 			}
@@ -217,38 +188,31 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 					})
 				}
 			}
+			// register the status subresource store if exists
 			if storageHandler.StatusSubResourceStorageProviderFn != nil {
-				// Use the underlying storage for status (needs *registry.Store)
-				underlying := storage
-				if vs, ok := storage.(*versionedStorage); ok {
-					underlying = vs.Storage
-				}
-				statusstorage, err := storageHandler.StatusSubResourceStorageProviderFn(s, underlying)
+				statusstorage, err := storageHandler.StatusSubResourceStorageProviderFn(s, originalStorage)
 				if err != nil {
 					return nil, err
 				}
-				apis[gvr.Version][gvr.Resource+"/status"] = statusstorage
-			}
+				apis[gvr.Version][gvr.Resource+"/"+"status"] = statusstorage
 
+			}
+			// register the arbitray subresource stores if exists
 			for subResourcename, storageProviderFn := range storageHandler.ArbitrarySubresourceHandlerProviders {
 				if storageProviderFn != nil {
-					underlying := storage
-					if vs, ok := storage.(*versionedStorage); ok {
-						underlying = vs.Storage
-					}
-					subResourceStorage, err := storageProviderFn(s, underlying)
+					subResourceStorage, err := storageProviderFn(s, originalStorage)
 					if err != nil {
 						return nil, err
 					}
 					apis[gvr.Version][gvr.Resource+"/"+subResourcename] = subResourceStorage
 				}
 			}
+			
 		}
 		apiGroupInfo := server.NewDefaultAPIGroupInfo(group, Scheme, ParameterCodec, Codecs)
 		apiGroupInfo.VersionedResourcesStorageMap = apis
 
-		// Filter internal version from PrioritizedVersions so getOpenAPIModels
-		// uses versioned canonical names matching OpenAPI definition keys.
+		// Filter internal from PrioritizedVersions so getOpenAPIModels uses versioned canonical names
 		filteredVersions := make([]schema.GroupVersion, 0, len(apiGroupInfo.PrioritizedVersions))
 		for _, gv := range apiGroupInfo.PrioritizedVersions {
 			if gv.Version != runtime.APIVersionInternal {
@@ -256,7 +220,7 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 			}
 		}
 		apiGroupInfo.PrioritizedVersions = filteredVersions
-		
+
 		apiGroups = append(apiGroups, &apiGroupInfo)
 	}
 	return apiGroups, nil
