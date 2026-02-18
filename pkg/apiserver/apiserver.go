@@ -145,14 +145,42 @@ type versionedStorage struct {
 }
 
 func (v *versionedStorage) New() runtime.Object {
-	return v.newObj.DeepCopyObject()
+    return v.newObj.DeepCopyObject()
 }
 
 func (v *versionedStorage) NamespaceScoped() bool {
-    if scoper, ok := v.Storage.(rest.Scoper); ok {
-        return scoper.NamespaceScoped()
+    if s, ok := v.Storage.(rest.Scoper); ok {
+        return s.NamespaceScoped()
     }
-    return true // default to namespaced
+    return true
+}
+
+func (v *versionedStorage) GetSingularName() string {
+    if s, ok := v.Storage.(rest.SingularNameProvider); ok {
+        return s.GetSingularName()
+    }
+    return ""
+}
+
+func (v *versionedStorage) NewList() runtime.Object {
+    if s, ok := v.Storage.(rest.Lister); ok {
+        return s.NewList()
+    }
+    return nil
+}
+
+func (v *versionedStorage) ShortNames() []string {
+    if s, ok := v.Storage.(rest.ShortNamesProvider); ok {
+        return s.ShortNames()
+    }
+    return nil
+}
+
+func (v *versionedStorage) GetCategories() []string {
+    if s, ok := v.Storage.(rest.CategoriesProvider); ok {
+        return s.Categories()
+    }
+    return nil
 }
 
 func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistry.RESTOptionsGetter) ([]*server.APIGroupInfo, error) {
