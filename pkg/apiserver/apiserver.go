@@ -112,6 +112,11 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 		if openapi.GlobalOpenAPISchemas != nil {
 			apiGroupInfo.StaticOpenAPISpec = openapi.GlobalOpenAPISchemas
 		}
+
+		fmt.Printf("DEBUG: openAPIV3Config nil: %v\n", c.GenericConfig.OpenAPIV3Config == nil)
+		fmt.Printf("DEBUG: openAPIV3Config apiGroupInfo: %v\n",apiGroupInfo)
+
+
 		if err := s.GenericAPIServer.InstallAPIGroup(apiGroupInfo); err != nil {
 			return nil, err
 		}
