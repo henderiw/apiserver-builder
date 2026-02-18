@@ -7,6 +7,7 @@ import (
 	"net"
 
 	"github.com/henderiw/apiserver-builder/pkg/apiserver"
+	"github.com/henderiw/apiserver-builder/pkg/openapi"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
@@ -15,9 +16,7 @@ import (
 	genericoptions "k8s.io/apiserver/pkg/server/options"
 	openapicommon "k8s.io/kube-openapi/pkg/common"
 	"k8s.io/kube-openapi/pkg/validation/spec"
-	"github.com/henderiw/apiserver-builder/pkg/openapi"
 )
-
 
 // GlobalOpenAPIDefs holds the merged OpenAPI definitions set by WithOpenAPIDefinitions.
 var GlobalOpenAPIDefs openapicommon.GetOpenAPIDefinitions

@@ -145,42 +145,42 @@ type versionedStorage struct {
 }
 
 func (v *versionedStorage) New() runtime.Object {
-    return v.newObj.DeepCopyObject()
+	return v.newObj.DeepCopyObject()
 }
 
 func (v *versionedStorage) NamespaceScoped() bool {
-    if s, ok := v.Storage.(rest.Scoper); ok {
-        return s.NamespaceScoped()
-    }
-    return true
+	if s, ok := v.Storage.(rest.Scoper); ok {
+		return s.NamespaceScoped()
+	}
+	return true
 }
 
 func (v *versionedStorage) GetSingularName() string {
-    if s, ok := v.Storage.(rest.SingularNameProvider); ok {
-        return s.GetSingularName()
-    }
-    return ""
+	if s, ok := v.Storage.(rest.SingularNameProvider); ok {
+		return s.GetSingularName()
+	}
+	return ""
 }
 
 func (v *versionedStorage) NewList() runtime.Object {
-    if s, ok := v.Storage.(rest.Lister); ok {
-        return s.NewList()
-    }
-    return nil
+	if s, ok := v.Storage.(rest.Lister); ok {
+		return s.NewList()
+	}
+	return nil
 }
 
 func (v *versionedStorage) ShortNames() []string {
-    if s, ok := v.Storage.(rest.ShortNamesProvider); ok {
-        return s.ShortNames()
-    }
-    return nil
+	if s, ok := v.Storage.(rest.ShortNamesProvider); ok {
+		return s.ShortNames()
+	}
+	return nil
 }
 
 func (v *versionedStorage) GetCategories() []string {
-    if s, ok := v.Storage.(rest.CategoriesProvider); ok {
-        return s.Categories()
-    }
-    return nil
+	if s, ok := v.Storage.(rest.CategoriesProvider); ok {
+		return s.Categories()
+	}
+	return nil
 }
 
 func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistry.RESTOptionsGetter) ([]*server.APIGroupInfo, error) {
@@ -214,6 +214,11 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 				// Keep original storage for status/subresource providers which need *registry.Store
 				originalStorage := storage
 
+				versionedGVK := schema.GroupVersionKind{
+					Group:   gvr.Group,
+					Version: gvr.Version,
+				}
+
 				// Wrap versioned storage so New() returns the versioned type
 				if gvr.Version != runtime.APIVersionInternal {
 					internalObj := storage.New()
@@ -242,11 +247,17 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 
 				// Use originalStorage for status/subresource providers (need *registry.Store)
 				if storageHandler.StatusSubResourceStorageProviderFn != nil {
-					statusstorage, err := storageHandler.StatusSubResourceStorageProviderFn(s, originalStorage)
+					statusStorage, err := storageHandler.StatusSubResourceStorageProviderFn(s, originalStorage)
 					if err != nil {
 						return nil, err
 					}
-					apis[gvr.Version][gvr.Resource+"/"+"status"] = statusstorage
+					// Wrap status storage too for versioned canonical names
+					if gvr.Version != runtime.APIVersionInternal && versionedGVK.Kind != "" {
+						if versionedObj, err := s.New(versionedGVK); err == nil {
+							statusStorage = &versionedStorage{Storage: statusStorage, newObj: versionedObj}
+						}
+					}
+					apis[gvr.Version][gvr.Resource+"/"+"status"] = statusStorage
 				}
 				for subResourcename, storageProviderFn := range storageHandler.ArbitrarySubresourceHandlerProviders {
 					if storageProviderFn != nil {
@@ -254,6 +265,13 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 						if err != nil {
 							return nil, err
 						}
+
+						if gvr.Version != runtime.APIVersionInternal && versionedGVK.Kind != "" {
+							if versionedObj, err := s.New(versionedGVK); err == nil {
+								subResourceStorage = &versionedStorage{Storage: subResourceStorage, newObj: versionedObj}
+							}
+						}
+
 						apis[gvr.Version][gvr.Resource+"/"+subResourcename] = subResourceStorage
 					}
 				}
