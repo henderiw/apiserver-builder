@@ -3,6 +3,7 @@ package apiserver
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource/resourcestrategy"
 	restbuilder "github.com/henderiw/apiserver-builder/pkg/builder/rest"
@@ -119,6 +120,14 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 
 		if err := s.GenericAPIServer.InstallAPIGroup(apiGroupInfo); err != nil {
 			return nil, err
+		}
+
+		// After install, check what StaticOpenAPISpec contains
+		fmt.Printf("DEBUG: StaticOpenAPISpec keys count: %d\n", len(apiGroupInfo.StaticOpenAPISpec))
+		for k := range apiGroupInfo.StaticOpenAPISpec {
+			if strings.Contains(k, "config") || strings.Contains(k, "sdcio") {
+				fmt.Printf("DEBUG: spec key: %s\n", k)
+			}
 		}
 	}
 
