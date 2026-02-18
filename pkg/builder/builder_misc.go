@@ -21,6 +21,7 @@ func (r *Server) WithOpenAPIDefinitions(
 			return result
 		}
 
+	options.GlobalOpenAPIDefs = mergedDefs
 	options.RecommendedConfigFns = append(options.RecommendedConfigFns, func(config *server.RecommendedConfig) *server.RecommendedConfig {
 		config.OpenAPIConfig = server.DefaultOpenAPIConfig(mergedDefs, openapinamer.NewDefinitionNamer(apiserver.Scheme, scheme.Scheme))
 		config.OpenAPIConfig.Info.Title = name
@@ -30,6 +31,7 @@ func (r *Server) WithOpenAPIDefinitions(
 		config.OpenAPIV3Config.Info.Version = version
 		return config
 	})
+
 	return r
 }
 
