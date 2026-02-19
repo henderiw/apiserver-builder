@@ -115,7 +115,7 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 
 		fmt.Printf("DEBUG: openAPIV3Config nil=%v\n", c.GenericConfig.OpenAPIV3Config == nil)
 		fmt.Printf("DEBUG: openAPIConfig nil=%v\n", c.GenericConfig.OpenAPIConfig == nil)
-		
+
 		if err := s.GenericAPIServer.InstallAPIGroup(apiGroupInfo); err != nil {
 			return nil, err
 		}
@@ -130,10 +130,6 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 			fmt.Printf("DEBUG: ObjectToTyped Config err=%v\n", typedErr)
 		}
 	}
-
-	
-
-
 	return s, nil
 }
 
@@ -182,6 +178,7 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 			originalStorage := storage
 			if gvr.Version != runtime.APIVersionInternal {
 				if store, ok := storage.(*genericregistryregistry.Store); ok {
+					fmt.Printf("DEBUG: wrapping %s/%s\n", gvr.Version, gvr.Resource)
 					versionedGVK := schema.GroupVersionKind{Group: gvr.Group, Version: gvr.Version}
 					if gvks, _, err := s.ObjectKinds(store.New()); err == nil {
 						for _, gvk := range gvks {
@@ -196,6 +193,8 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 							storage = &versionedStorage{Store: store, newObj: versionedObj}
 						}
 					}
+				} else {
+					fmt.Printf("DEBUG: NOT a *Store, skipping wrap for %s/%s type=%T\n", gvr.Version, gvr.Resource, storage)
 				}
 			}
 
