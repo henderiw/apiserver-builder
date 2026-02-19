@@ -1,8 +1,8 @@
 package builder
 
 import (
-	"strings"
-
+	"fmt"
+	
 	"github.com/henderiw/apiserver-builder/pkg/apiserver"
 	"github.com/henderiw/apiserver-builder/pkg/cmd/apiserverbuilder/options"
 	openapinamer "k8s.io/apiserver/pkg/endpoints/openapi"
@@ -10,43 +10,31 @@ import (
 	scheme "k8s.io/client-go/kubernetes/scheme"
 	openapicommon "k8s.io/kube-openapi/pkg/common"
 	apiextensionsopenapi "k8s.io/apiextensions-apiserver/pkg/generated/openapi"
-	"k8s.io/kube-openapi/pkg/validation/spec"
 )
 
 func (r *Server) WithOpenAPIDefinitions(
 	name, version string,
 	defs openapicommon.GetOpenAPIDefinitions) *Server {
-		
 	mergedDefs := func(ref openapicommon.ReferenceCallback) map[string]openapicommon.OpenAPIDefinition {
-		// Wrap ref callback to decode ~1 → / so refs match map keys.
-		// kube-openapi encodes "/" as "~1" in $ref strings for OpenAPI v3,
-		// but StaticOpenAPISpec keys use raw "/" — NewTypeConverter can't resolve them.
-		decodedRef := func(path string) spec.Ref {
-			r := ref(path)
-			refStr := r.String()
-			decoded := strings.ReplaceAll(refStr, "~1", "/")
-			if decoded != refStr {
-				if newRef, err := spec.NewRef(decoded); err == nil {
-					return newRef
-				}
-			}
-			return r
-		}
-		result := apiextensionsopenapi.GetOpenAPIDefinitions(decodedRef)
-		for k, v := range defs(decodedRef) {
+		result := apiextensionsopenapi.GetOpenAPIDefinitions(ref)
+		for k, v := range defs(ref) {
 			result[k] = v
 		}
 		return result
 	}
-
-	namer := openapinamer.NewDefinitionNamer(apiserver.Scheme, scheme.Scheme)
-
+	
+	// DEBUG: check what the namer returns for our types
+    namer := openapinamer.NewDefinitionNamer(apiserver.Scheme, scheme.Scheme)
+    defName, _ := namer.GetDefinitionName("github.com/sdcio/config-server/apis/config/v1alpha1.Config")
+    fmt.Printf("DEBUG: namer Config = %q\n", defName)
+    defName2, _ := namer.GetDefinitionName("github.com/sdcio/config-server/apis/config/v1alpha1.DeviationSpec")
+    fmt.Printf("DEBUG: namer DeviationSpec = %q\n", defName2)
 		
 	options.RecommendedConfigFns = append(options.RecommendedConfigFns, func(config *server.RecommendedConfig) *server.RecommendedConfig {
-		config.OpenAPIConfig = server.DefaultOpenAPIConfig(mergedDefs, namer)
+		config.OpenAPIConfig = server.DefaultOpenAPIConfig(mergedDefs, openapinamer.NewDefinitionNamer(apiserver.Scheme, scheme.Scheme))
 		config.OpenAPIConfig.Info.Title = name
 		config.OpenAPIConfig.Info.Version = version
-		config.OpenAPIV3Config = server.DefaultOpenAPIV3Config(mergedDefs, namer)
+		config.OpenAPIV3Config = server.DefaultOpenAPIV3Config(mergedDefs, openapinamer.NewDefinitionNamer(apiserver.Scheme, scheme.Scheme))
 		config.OpenAPIV3Config.Info.Title = name
 		config.OpenAPIV3Config.Info.Version = version
 		return config
