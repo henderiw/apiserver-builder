@@ -122,6 +122,18 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 			return nil, err
 		}
 
+		// Check the actual $ref format inside Deviation schema
+		if dev, ok := apiGroupInfo.StaticOpenAPISpec["github.com/sdcio/config-server/apis/config/v1alpha1.Deviation"]; ok {
+			if specField, ok := dev.Properties["spec"]; ok {
+				fmt.Printf("DEBUG: Deviation.spec.$ref = %q\n", specField.Ref.String())
+			}
+			if statusField, ok := dev.Properties["status"]; ok {
+				fmt.Printf("DEBUG: Deviation.status.$ref = %q\n", statusField.Ref.String())
+			}
+		} else {
+			fmt.Printf("DEBUG: Deviation NOT found in StaticOpenAPISpec\n")
+		}
+
 		fmt.Printf("DEBUG: StaticOpenAPISpec keys=%d\n", len(apiGroupInfo.StaticOpenAPISpec))
 		for k := range apiGroupInfo.StaticOpenAPISpec {
 			if strings.Contains(k, "Deviation") {
