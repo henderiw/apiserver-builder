@@ -3,8 +3,6 @@ package apiserver
 import (
 	"context"
 	"fmt"
-	"strings"
-	"encoding/json"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource/resourcestrategy"
 	restbuilder "github.com/henderiw/apiserver-builder/pkg/builder/rest"
@@ -17,9 +15,6 @@ import (
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/apiserver/pkg/server"
 	basecompatibility "k8s.io/component-base/compatibility"
-
-	managedfields "k8s.io/apimachinery/pkg/util/managedfields"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 var (
@@ -100,7 +95,6 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	genericServer = ApplyGenericAPIServerFns(genericServer)
 
 	s := &Server{
@@ -113,69 +107,12 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 		return nil, err
 	}
 	for _, apiGroupInfo := range apiGroups {
-
-		fmt.Printf("DEBUG: openAPIV3Config nil=%v\n", c.GenericConfig.OpenAPIV3Config == nil)
-		fmt.Printf("DEBUG: openAPIConfig nil=%v\n", c.GenericConfig.OpenAPIConfig == nil)
-		fmt.Printf("DEBUG: StaticOpenAPISpec BEFORE InstallAPIGroup keys=%d\n", len(apiGroupInfo.StaticOpenAPISpec))
-
 		if err := s.GenericAPIServer.InstallAPIGroup(apiGroupInfo); err != nil {
 			return nil, err
-		}
-
-		// Check the actual $ref format inside Deviation schema
-		if dev, ok := apiGroupInfo.StaticOpenAPISpec["github.com/sdcio/config-server/apis/config/v1alpha1.Deviation"]; ok {
-			if specField, ok := dev.Properties["spec"]; ok {
-				fmt.Printf("DEBUG: Deviation.spec.$ref = %q\n", specField.Ref.String())
-			}
-			if statusField, ok := dev.Properties["status"]; ok {
-				fmt.Printf("DEBUG: Deviation.status.$ref = %q\n", statusField.Ref.String())
-			}
-		} else {
-			fmt.Printf("DEBUG: Deviation NOT found in StaticOpenAPISpec\n")
-		}
-
-		// Check the actual $ref format inside Deviation schema
-		if dev, ok := apiGroupInfo.StaticOpenAPISpec["github.com/sdcio/config-server/apis/config/v1alpha1.Deviation"]; ok {
-			b, _ := json.MarshalIndent(dev, "", "  ")
-			fmt.Printf("DEBUG: Deviation schema:\n%s\n", string(b))
-		}
-
-		fmt.Printf("DEBUG: StaticOpenAPISpec keys=%d\n", len(apiGroupInfo.StaticOpenAPISpec))
-		for k := range apiGroupInfo.StaticOpenAPISpec {
-			if strings.Contains(k, "Deviation") {
-				fmt.Printf("DEBUG: spec key: %s\n", k)
-			}
-		}
-
-		tc, tcErr := managedfields.NewTypeConverter(apiGroupInfo.StaticOpenAPISpec, false)
-		fmt.Printf("DEBUG: NewTypeConverter err=%v\n", tcErr)
-		if tcErr == nil {
-			for _, gvk := range []schema.GroupVersionKind{
-				//{Group: "config.sdcio.dev", Version: "v1alpha1", Kind: "Config"},
-				{Group: "config.sdcio.dev", Version: "v1alpha1", Kind: "Deviation"},
-			} {
-				u := &unstructured.Unstructured{
-					Object: map[string]interface{}{
-						"apiVersion": "config.sdcio.dev/v1alpha1",
-						"kind":       "Deviation",
-						"metadata":   map[string]interface{}{"name": "test", "namespace": "default"},
-						"spec": map[string]interface{}{
-							"deviationType": "target",
-						},
-						"status": map[string]interface{}{
-							"conditions": []interface{}{},
-						},
-					},
-				}
-				u.SetGroupVersionKind(gvk)
-				_, typedErr := tc.ObjectToTyped(u)
-				fmt.Printf("DEBUG: ObjectToTyped %s err=%v\n", gvk.Kind, typedErr)
-			}
 		}
 	}
 	return s, nil
 }
-
 
 func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistry.RESTOptionsGetter) ([]*server.APIGroupInfo, error) {
 	resourcesByGroupVersion := make(map[schema.GroupVersion]sets.Set[string])
@@ -206,7 +143,6 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 			if err != nil {
 				return nil, err
 			}
-			
 
 			apis[gvr.Version][gvr.Resource] = storage
 			// add the defaulting function for this version to the scheme
@@ -236,7 +172,7 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 					apis[gvr.Version][gvr.Resource+"/"+subResourcename] = subResourceStorage
 				}
 			}
-			
+
 		}
 		apiGroupInfo := server.NewDefaultAPIGroupInfo(group, Scheme, ParameterCodec, Codecs)
 		apiGroupInfo.VersionedResourcesStorageMap = apis

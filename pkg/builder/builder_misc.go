@@ -13,6 +13,14 @@ import (
 	spec "k8s.io/kube-openapi/pkg/validation/spec"
 )
 
+/*
+Root cause: NewTypeConverter builds an SMD type universe from StaticOpenAPISpec. When it resolves a $ref like #/components/schemas/github.com~1sdcio~1config-server~1apis~1config~1v1alpha1.DeviationSpec, it strips the prefix and does a direct map lookup for github.com~1sdcio~1...DeviationSpec. But GetOpenAPIDefinitions returns keys with raw / (github.com/sdcio/...). The mismatch meant DeviationSpec and DeviationStatus were never found.
+Fix (two parts in builder_misc.go):
+
+GetDefinitionName override — returns ~1-encoded names for github.com/ types so that $ref strings and map keys are consistent
+mergedDefs alias loop — adds ~1-encoded duplicate entries alongside the original / keys so that both getResourceNamesForGroup (uses /) and NewTypeConverter (uses ~1) can find them
+*/
+
 func (r *Server) WithOpenAPIDefinitions(
 	name, version string,
 	defs openapicommon.GetOpenAPIDefinitions) *Server {
