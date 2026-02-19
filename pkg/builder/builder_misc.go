@@ -10,6 +10,7 @@ import (
 	scheme "k8s.io/client-go/kubernetes/scheme"
 	openapicommon "k8s.io/kube-openapi/pkg/common"
 	apiextensionsopenapi "k8s.io/apiextensions-apiserver/pkg/generated/openapi"
+	"k8s.io/kube-openapi/pkg/validation/spec"
 )
 
 func (r *Server) WithOpenAPIDefinitions(
@@ -17,22 +18,22 @@ func (r *Server) WithOpenAPIDefinitions(
 	defs openapicommon.GetOpenAPIDefinitions) *Server {
 		
 	mergedDefs := func(ref openapicommon.ReferenceCallback) map[string]openapicommon.OpenAPIDefinition {
-		result := apiextensionsopenapi.GetOpenAPIDefinitions(ref)
-		for k, v := range defs(ref) {
-			result[k] = v
-		}
-
-		// Add ~1-encoded aliases alongside the original keys.
-		// getResourceNamesForGroup looks up by decoded "/" keys,
-		// but NewTypeConverter resolves $refs using ~1-encoded keys — need both.
-		aliases := make(map[string]openapicommon.OpenAPIDefinition)
-		for k, v := range result {
-			encodedKey := strings.ReplaceAll(k, "/", "~1")
-			if encodedKey != k {
-				aliases[encodedKey] = v
+		// Wrap ref callback to decode ~1 → / so refs match map keys.
+		// kube-openapi encodes "/" as "~1" in $ref strings for OpenAPI v3,
+		// but StaticOpenAPISpec keys use raw "/" — NewTypeConverter can't resolve them.
+		decodedRef := func(path string) spec.Ref {
+			r := ref(path)
+			refStr := r.String()
+			decoded := strings.ReplaceAll(refStr, "~1", "/")
+			if decoded != refStr {
+				if newRef, err := spec.NewRef(decoded); err == nil {
+					return newRef
+				}
 			}
+			return r
 		}
-		for k, v := range aliases {
+		result := apiextensionsopenapi.GetOpenAPIDefinitions(decodedRef)
+		for k, v := range defs(decodedRef) {
 			result[k] = v
 		}
 		return result
