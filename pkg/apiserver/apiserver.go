@@ -12,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/sets"
 	genericregistry "k8s.io/apiserver/pkg/registry/generic"
-	genericregistryregistry "k8s.io/apiserver/pkg/registry/generic/registry"
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/apiserver/pkg/server"
 	basecompatibility "k8s.io/component-base/compatibility"
@@ -134,7 +133,7 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 }
 
 type versionedStorage struct {
-    *genericregistryregistry.Store  // concrete type - all interface assertions pass through
+    rest.Storage  // concrete type - all interface assertions pass through
     newObj runtime.Object
 }
 
@@ -177,24 +176,19 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 			// Internal GVRs stay unwrapped for the conversion pipeline.
 			originalStorage := storage
 			if gvr.Version != runtime.APIVersionInternal {
-				if store, ok := storage.(*genericregistryregistry.Store); ok {
-					fmt.Printf("DEBUG: wrapping %s/%s\n", gvr.Version, gvr.Resource)
-					versionedGVK := schema.GroupVersionKind{Group: gvr.Group, Version: gvr.Version}
-					if gvks, _, err := s.ObjectKinds(store.New()); err == nil {
-						for _, gvk := range gvks {
-							if gvk.Version == runtime.APIVersionInternal {
-								versionedGVK.Kind = gvk.Kind
-								break
-							}
+				versionedGVK := schema.GroupVersionKind{Group: gvr.Group, Version: gvr.Version}
+				if gvks, _, err := s.ObjectKinds(storage.New()); err == nil {
+					for _, gvk := range gvks {
+						if gvk.Version == runtime.APIVersionInternal {
+							versionedGVK.Kind = gvk.Kind
+							break
 						}
 					}
-					if versionedGVK.Kind != "" {
-						if versionedObj, err := s.New(versionedGVK); err == nil {
-							storage = &versionedStorage{Store: store, newObj: versionedObj}
-						}
+				}
+				if versionedGVK.Kind != "" {
+					if versionedObj, err := s.New(versionedGVK); err == nil {
+						storage = &versionedStorage{Storage: storage, newObj: versionedObj}
 					}
-				} else {
-					fmt.Printf("DEBUG: NOT a *Store, skipping wrap for %s/%s type=%T\n", gvr.Version, gvr.Resource, storage)
 				}
 			}
 
