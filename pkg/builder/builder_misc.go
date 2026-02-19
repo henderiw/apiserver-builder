@@ -1,6 +1,8 @@
 package builder
 
 import (
+	"strings"
+	
 	"github.com/henderiw/apiserver-builder/pkg/apiserver"
 	"github.com/henderiw/apiserver-builder/pkg/cmd/apiserverbuilder/options"
 	openapinamer "k8s.io/apiserver/pkg/endpoints/openapi"
@@ -16,6 +18,21 @@ func (r *Server) WithOpenAPIDefinitions(
 		mergedDefs := func(ref openapicommon.ReferenceCallback) map[string]openapicommon.OpenAPIDefinition {
 			result := apiextensionsopenapi.GetOpenAPIDefinitions(ref)
 			for k, v := range defs(ref) {
+				result[k] = v
+			}
+			// Add ~1-encoded key aliases so $ref resolution works in NewTypeConverter.
+			// OpenAPI v3 $refs use ~1 encoding (e.g. "github.com~1foo~1Bar") but map
+			// keys use decoded paths (e.g. "github.com/foo.Bar"). NewTypeConverter
+			// resolves refs by stripping "#/components/schemas/" and looking up the
+			// remainder directly — so we need both encodings in the map.
+			encoded := make(map[string]openapicommon.OpenAPIDefinition)
+			for k, v := range result {
+				encodedKey := strings.ReplaceAll(k, "/", "~1")
+				if encodedKey != k {
+					encoded[encodedKey] = v
+				}
+			}
+			for k, v := range encoded {
 				result[k] = v
 			}
 			return result
