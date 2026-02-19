@@ -18,6 +18,7 @@ import (
 
 	managedfields "k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	apiserverstore "github.com/henderiw/apiserver-store/pkg/generic/registry"
 )
 
 var (
@@ -133,7 +134,7 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 }
 
 type versionedStorage struct {
-    rest.Storage  // concrete type - all interface assertions pass through
+    apiserverstore.Store 
     newObj runtime.Object
 }
 
@@ -176,19 +177,24 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 			// Internal GVRs stay unwrapped for the conversion pipeline.
 			originalStorage := storage
 			if gvr.Version != runtime.APIVersionInternal {
-				versionedGVK := schema.GroupVersionKind{Group: gvr.Group, Version: gvr.Version}
-				if gvks, _, err := s.ObjectKinds(storage.New()); err == nil {
-					for _, gvk := range gvks {
-						if gvk.Version == runtime.APIVersionInternal {
-							versionedGVK.Kind = gvk.Kind
-							break
+				if store, ok := storage.(*apiserverstore.Store); ok {
+					versionedGVK := schema.GroupVersionKind{Group: gvr.Group, Version: gvr.Version}
+					if gvks, _, err := s.ObjectKinds(store.New()); err == nil {
+						for _, gvk := range gvks {
+							if gvk.Version == runtime.APIVersionInternal {
+								versionedGVK.Kind = gvk.Kind
+								break
+							}
 						}
 					}
-				}
-				if versionedGVK.Kind != "" {
-					if versionedObj, err := s.New(versionedGVK); err == nil {
-						storage = &versionedStorage{Storage: storage, newObj: versionedObj}
+					if versionedGVK.Kind != "" {
+						if versionedObj, err := s.New(versionedGVK); err == nil {
+							storage = &versionedStorage{Store: *store, newObj: versionedObj}
+							fmt.Printf("DEBUG: wrapped %s/%s\n", gvr.Version, gvr.Resource)
+						}
 					}
+				} else {
+					fmt.Printf("DEBUG: NOT *apiserverstore.Store for %s/%s type=%T\n", gvr.Version, gvr.Resource, storage)
 				}
 			}
 
