@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"encoding/json"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource/resourcestrategy"
 	restbuilder "github.com/henderiw/apiserver-builder/pkg/builder/rest"
@@ -132,6 +133,12 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 			}
 		} else {
 			fmt.Printf("DEBUG: Deviation NOT found in StaticOpenAPISpec\n")
+		}
+
+		// Check the actual $ref format inside Deviation schema
+		if dev, ok := apiGroupInfo.StaticOpenAPISpec["github.com/sdcio/config-server/apis/config/v1alpha1.Deviation"]; ok {
+			b, _ := json.MarshalIndent(dev, "", "  ")
+			fmt.Printf("DEBUG: Deviation schema:\n%s\n", string(b))
 		}
 
 		fmt.Printf("DEBUG: StaticOpenAPISpec keys=%d\n", len(apiGroupInfo.StaticOpenAPISpec))
