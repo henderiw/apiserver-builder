@@ -22,14 +22,20 @@ func (r *Server) WithOpenAPIDefinitions(
 			result[k] = v
 		}
 
-		// Re-key with ~1 encoding to match what $ref resolution looks up.
-        // The namer encodes "/" as "~1" in refs but GetOpenAPIDefinitions returns
-        // keys with raw "/" — NewTypeConverter can't resolve them without this.
-        encoded := make(map[string]openapicommon.OpenAPIDefinition, len(result))
-        for k, v := range result {
-            encoded[strings.ReplaceAll(k, "/", "~1")] = v
-        }
-		return encoded
+		// Add ~1-encoded aliases alongside the original keys.
+		// getResourceNamesForGroup looks up by decoded "/" keys,
+		// but NewTypeConverter resolves $refs using ~1-encoded keys — need both.
+		aliases := make(map[string]openapicommon.OpenAPIDefinition)
+		for k, v := range result {
+			encodedKey := strings.ReplaceAll(k, "/", "~1")
+			if encodedKey != k {
+				aliases[encodedKey] = v
+			}
+		}
+		for k, v := range aliases {
+			result[k] = v
+		}
+		return result
 	}
 
 	namer := openapinamer.NewDefinitionNamer(apiserver.Scheme, scheme.Scheme)
