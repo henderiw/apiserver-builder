@@ -3,6 +3,7 @@ package apiserver
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource/resourcestrategy"
 	restbuilder "github.com/henderiw/apiserver-builder/pkg/builder/rest"
@@ -120,14 +121,25 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 			return nil, err
 		}
 
+		fmt.Printf("DEBUG: StaticOpenAPISpec keys=%d\n", len(apiGroupInfo.StaticOpenAPISpec))
+		for k := range apiGroupInfo.StaticOpenAPISpec {
+			if strings.Contains(k, "Deviation") {
+				fmt.Printf("DEBUG: spec key: %s\n", k)
+			}
+		}
+
 		tc, tcErr := managedfields.NewTypeConverter(apiGroupInfo.StaticOpenAPISpec, false)
 		fmt.Printf("DEBUG: NewTypeConverter err=%v\n", tcErr)
 		if tcErr == nil {
-			gvk := schema.GroupVersionKind{Group: "config.sdcio.dev", Version: "v1alpha1", Kind: "Config"}
-			u := &unstructured.Unstructured{}
-			u.SetGroupVersionKind(gvk)
-			_, typedErr := tc.ObjectToTyped(u)
-			fmt.Printf("DEBUG: ObjectToTyped Config err=%v\n", typedErr)
+			for _, gvk := range []schema.GroupVersionKind{
+				{Group: "config.sdcio.dev", Version: "v1alpha1", Kind: "Config"},
+				{Group: "config.sdcio.dev", Version: "v1alpha1", Kind: "Deviation"},
+			} {
+				u := &unstructured.Unstructured{}
+				u.SetGroupVersionKind(gvk)
+				_, typedErr := tc.ObjectToTyped(u)
+				fmt.Printf("DEBUG: ObjectToTyped %s err=%v\n", gvk.Kind, typedErr)
+			}
 		}
 	}
 	return s, nil
