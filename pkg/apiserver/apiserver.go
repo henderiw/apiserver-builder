@@ -116,6 +116,7 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 
 		fmt.Printf("DEBUG: openAPIV3Config nil=%v\n", c.GenericConfig.OpenAPIV3Config == nil)
 		fmt.Printf("DEBUG: openAPIConfig nil=%v\n", c.GenericConfig.OpenAPIConfig == nil)
+		fmt.Printf("DEBUG: StaticOpenAPISpec BEFORE InstallAPIGroup keys=%d\n", len(apiGroupInfo.StaticOpenAPISpec))
 
 		if err := s.GenericAPIServer.InstallAPIGroup(apiGroupInfo); err != nil {
 			return nil, err
@@ -202,7 +203,11 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 					if versionedGVK.Kind != "" {
 						if versionedObj, err := s.New(versionedGVK); err == nil {
 							storage = &versionedStorage{Store: *store, newObj: versionedObj}
-							fmt.Printf("DEBUG: wrapped %s/%s\n", gvr.Version, gvr.Resource)
+							// Print what canonical name getResourceNamesForGroup will see
+							testNew := storage.New()
+							gvks2, _, _ := s.ObjectKinds(testNew)
+							fmt.Printf("DEBUG: wrapped %s/%s → New() type=%T GVKs=%v\n", 
+								gvr.Version, gvr.Resource, testNew, gvks2)
 						}
 					}
 				} else {
