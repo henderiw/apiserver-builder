@@ -20,7 +20,6 @@ import (
 
 	managedfields "k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	apiserverstore "github.com/henderiw/apiserver-store/pkg/generic/registry"
 )
 
 var (
@@ -177,15 +176,6 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 	return s, nil
 }
 
-type versionedStorage struct {
-    apiserverstore.Store 
-    newObj runtime.Object
-}
-
-func (v *versionedStorage) New() runtime.Object {
-    return v.newObj.DeepCopyObject()
-}
-
 
 func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistry.RESTOptionsGetter) ([]*server.APIGroupInfo, error) {
 	resourcesByGroupVersion := make(map[schema.GroupVersion]sets.Set[string])
@@ -216,35 +206,7 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 			if err != nil {
 				return nil, err
 			}
-
-			// Wrap versioned storage so New() returns versioned type for correct OpenAPI canonical names.
-			// Internal GVRs stay unwrapped for the conversion pipeline.
-			originalStorage := storage
-			if gvr.Version != runtime.APIVersionInternal {
-				if store, ok := storage.(*apiserverstore.Store); ok {
-					versionedGVK := schema.GroupVersionKind{Group: gvr.Group, Version: gvr.Version}
-					if gvks, _, err := s.ObjectKinds(store.New()); err == nil {
-						for _, gvk := range gvks {
-							if gvk.Version == runtime.APIVersionInternal {
-								versionedGVK.Kind = gvk.Kind
-								break
-							}
-						}
-					}
-					if versionedGVK.Kind != "" {
-						if versionedObj, err := s.New(versionedGVK); err == nil {
-							storage = &versionedStorage{Store: *store, newObj: versionedObj}
-							// Print what canonical name getResourceNamesForGroup will see
-							testNew := storage.New()
-							gvks2, _, _ := s.ObjectKinds(testNew)
-							fmt.Printf("DEBUG: wrapped %s/%s → New() type=%T GVKs=%v\n", 
-								gvr.Version, gvr.Resource, testNew, gvks2)
-						}
-					}
-				} else {
-					fmt.Printf("DEBUG: NOT *apiserverstore.Store for %s/%s type=%T\n", gvr.Version, gvr.Resource, storage)
-				}
-			}
+			
 
 			apis[gvr.Version][gvr.Resource] = storage
 			// add the defaulting function for this version to the scheme
@@ -257,7 +219,7 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 			}
 			// register the status subresource store if exists
 			if storageHandler.StatusSubResourceStorageProviderFn != nil {
-				statusstorage, err := storageHandler.StatusSubResourceStorageProviderFn(s, originalStorage)
+				statusstorage, err := storageHandler.StatusSubResourceStorageProviderFn(s, storage)
 				if err != nil {
 					return nil, err
 				}
@@ -267,7 +229,7 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 			// register the arbitray subresource stores if exists
 			for subResourcename, storageProviderFn := range storageHandler.ArbitrarySubresourceHandlerProviders {
 				if storageProviderFn != nil {
-					subResourceStorage, err := storageProviderFn(s, originalStorage)
+					subResourceStorage, err := storageProviderFn(s, storage)
 					if err != nil {
 						return nil, err
 					}
@@ -278,16 +240,6 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 		}
 		apiGroupInfo := server.NewDefaultAPIGroupInfo(group, Scheme, ParameterCodec, Codecs)
 		apiGroupInfo.VersionedResourcesStorageMap = apis
-
-		// Filter internal from PrioritizedVersions so getOpenAPIModels uses versioned canonical names
-		filteredVersions := make([]schema.GroupVersion, 0, len(apiGroupInfo.PrioritizedVersions))
-		for _, gv := range apiGroupInfo.PrioritizedVersions {
-			if gv.Version != runtime.APIVersionInternal {
-				filteredVersions = append(filteredVersions, gv)
-			}
-		}
-		apiGroupInfo.PrioritizedVersions = filteredVersions
-
 		apiGroups = append(apiGroups, &apiGroupInfo)
 	}
 	return apiGroups, nil
