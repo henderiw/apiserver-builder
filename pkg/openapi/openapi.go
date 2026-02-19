@@ -1,5 +1,7 @@
 package openapi
 
+/*
+
 import (
 	managedfields "k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/kube-openapi/pkg/validation/spec"
@@ -11,3 +13,5 @@ var GlobalOpenAPISchemas map[string]*spec.Schema
 
 // GlobalTypeConverter is built from GlobalOpenAPISchemas.
 var GlobalTypeConverter managedfields.TypeConverter
+
+*/

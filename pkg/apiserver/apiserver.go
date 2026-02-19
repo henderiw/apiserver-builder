@@ -133,10 +133,22 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 		fmt.Printf("DEBUG: NewTypeConverter err=%v\n", tcErr)
 		if tcErr == nil {
 			for _, gvk := range []schema.GroupVersionKind{
-				{Group: "config.sdcio.dev", Version: "v1alpha1", Kind: "Config"},
+				//{Group: "config.sdcio.dev", Version: "v1alpha1", Kind: "Config"},
 				{Group: "config.sdcio.dev", Version: "v1alpha1", Kind: "Deviation"},
 			} {
-				u := &unstructured.Unstructured{}
+				u := &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "config.sdcio.dev/v1alpha1",
+						"kind":       "Deviation",
+						"metadata":   map[string]interface{}{"name": "test", "namespace": "default"},
+						"spec": map[string]interface{}{
+							"deviationType": "target",
+						},
+						"status": map[string]interface{}{
+							"conditions": []interface{}{},
+						},
+					},
+				}
 				u.SetGroupVersionKind(gvk)
 				_, typedErr := tc.ObjectToTyped(u)
 				fmt.Printf("DEBUG: ObjectToTyped %s err=%v\n", gvk.Kind, typedErr)
