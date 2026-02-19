@@ -11,6 +11,7 @@ import (
 	scheme "k8s.io/client-go/kubernetes/scheme"
 	openapicommon "k8s.io/kube-openapi/pkg/common"
 	apiextensionsopenapi "k8s.io/apiextensions-apiserver/pkg/generated/openapi"
+	spec "k8s.io/kube-openapi/pkg/validation/spec"
 )
 
 func (r *Server) WithOpenAPIDefinitions(
@@ -50,9 +51,12 @@ func (r *Server) WithOpenAPIDefinitions(
 		config.OpenAPIConfig = server.DefaultOpenAPIConfig(mergedDefs, namer)
 		config.OpenAPIConfig.Info.Title = name
 		config.OpenAPIConfig.Info.Version = version
+		config.OpenAPIConfig.GetDefinitionName = getDefinitionName
+
 		config.OpenAPIV3Config = server.DefaultOpenAPIV3Config(mergedDefs, namer)
 		config.OpenAPIV3Config.Info.Title = name
 		config.OpenAPIV3Config.Info.Version = version
+		config.OpenAPIConfig.GetDefinitionName = getDefinitionName
 		return config
 	})
 
