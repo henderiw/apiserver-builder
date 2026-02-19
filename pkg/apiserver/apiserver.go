@@ -15,7 +15,6 @@ import (
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/apiserver/pkg/server"
 	basecompatibility "k8s.io/component-base/compatibility"
-	"github.com/henderiw/apiserver-builder/pkg/openapi"
 )
 
 var (
@@ -96,7 +95,6 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	genericServer = ApplyGenericAPIServerFns(genericServer)
 
 	s := &Server{
@@ -109,19 +107,10 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 		return nil, err
 	}
 	for _, apiGroupInfo := range apiGroups {
-		if openapi.GlobalOpenAPISchemas != nil {
-			apiGroupInfo.StaticOpenAPISpec = openapi.GlobalOpenAPISchemas
-		}
-
-		fmt.Printf("DEBUG: openAPIV3Config nil: %v\n", c.GenericConfig.OpenAPIV3Config == nil)
-		fmt.Printf("DEBUG: openAPIV3Config apiGroupInfo: %v\n",apiGroupInfo)
-
-
 		if err := s.GenericAPIServer.InstallAPIGroup(apiGroupInfo); err != nil {
 			return nil, err
 		}
 	}
-
 	return s, nil
 }
 
@@ -139,49 +128,51 @@ func BuildAPIGroupInfos(ctx context.Context, s *runtime.Scheme, g genericregistr
 	for _, group := range sets.List[string](groups) {
 		apis := map[string]map[string]rest.Storage{}
 		for gvr, storageHandler := range APIs {
-			if gvr.Group == group {
-				if _, found := apis[gvr.Version]; !found {
-					apis[gvr.Version] = map[string]rest.Storage{}
-				}
+			if gvr.Group != group {
+				continue
+			}
+			if _, found := apis[gvr.Version]; !found {
+				apis[gvr.Version] = map[string]rest.Storage{}
+			}
 
-				// register the resource store
-				if storageHandler.ResourceStorageProviderFn == nil {
-					return nil, fmt.Errorf("gvr %s has no storageprovider registered", gvr.String())
+			// register the resource store
+			if storageHandler.ResourceStorageProviderFn == nil {
+				return nil, fmt.Errorf("gvr %s has no storageprovider registered", gvr.String())
+			}
+			storage, err := storageHandler.ResourceStorageProviderFn(s, g)
+			if err != nil {
+				return nil, err
+			}
+
+			apis[gvr.Version][gvr.Resource] = storage
+			// add the defaulting function for this version to the scheme
+			if _, ok := storage.(resourcestrategy.Defaulter); ok {
+				if obj, ok := storage.(runtime.Object); ok {
+					s.AddTypeDefaultingFunc(obj, func(obj interface{}) {
+						obj.(resourcestrategy.Defaulter).Default()
+					})
 				}
-				storage, err := storageHandler.ResourceStorageProviderFn(s, g)
+			}
+			// register the status subresource store if exists
+			if storageHandler.StatusSubResourceStorageProviderFn != nil {
+				statusstorage, err := storageHandler.StatusSubResourceStorageProviderFn(s, storage)
 				if err != nil {
 					return nil, err
 				}
+				apis[gvr.Version][gvr.Resource+"/"+"status"] = statusstorage
 
-				apis[gvr.Version][gvr.Resource] = storage
-				// add the defaulting function for this version to the scheme
-				if _, ok := storage.(resourcestrategy.Defaulter); ok {
-					if obj, ok := storage.(runtime.Object); ok {
-						s.AddTypeDefaultingFunc(obj, func(obj interface{}) {
-							obj.(resourcestrategy.Defaulter).Default()
-						})
-					}
-				}
-				// register the status subresource store if exists
-				if storageHandler.StatusSubResourceStorageProviderFn != nil {
-					statusstorage, err := storageHandler.StatusSubResourceStorageProviderFn(s, storage)
+			}
+			// register the arbitray subresource stores if exists
+			for subResourcename, storageProviderFn := range storageHandler.ArbitrarySubresourceHandlerProviders {
+				if storageProviderFn != nil {
+					subResourceStorage, err := storageProviderFn(s, storage)
 					if err != nil {
 						return nil, err
 					}
-					apis[gvr.Version][gvr.Resource+"/"+"status"] = statusstorage
-
-				}
-				// register the arbitray subresource stores if exists
-				for subResourcename, storageProviderFn := range storageHandler.ArbitrarySubresourceHandlerProviders {
-					if storageProviderFn != nil {
-						subResourceStorage, err := storageProviderFn(s, storage)
-						if err != nil {
-							return nil, err
-						}
-						apis[gvr.Version][gvr.Resource+"/"+subResourcename] = subResourceStorage
-					}
+					apis[gvr.Version][gvr.Resource+"/"+subResourcename] = subResourceStorage
 				}
 			}
+
 		}
 		apiGroupInfo := server.NewDefaultAPIGroupInfo(group, Scheme, ParameterCodec, Codecs)
 		apiGroupInfo.VersionedResourcesStorageMap = apis
