@@ -112,6 +112,10 @@ func (c completedConfig) New(ctx context.Context) (*Server, error) {
 		return nil, err
 	}
 	for _, apiGroupInfo := range apiGroups {
+
+		fmt.Printf("DEBUG: openAPIV3Config nil=%v\n", c.GenericConfig.OpenAPIV3Config == nil)
+		fmt.Printf("DEBUG: openAPIConfig nil=%v\n", c.GenericConfig.OpenAPIConfig == nil)
+		
 		if err := s.GenericAPIServer.InstallAPIGroup(apiGroupInfo); err != nil {
 			return nil, err
 		}
