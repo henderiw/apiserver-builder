@@ -2,6 +2,7 @@ package resource
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource/resourcestrategy"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
@@ -53,21 +54,16 @@ func AddToScheme(objs ...Object) func(s *runtime.Scheme) error {
 				}
 			}
 
-			// WIM: we assume right now that an arbitrary subresource is using the parent object
 			// e.g. the scale subresources is adding an autoscaling scale kind to the type
-			/*
-				if sgs, ok := obj.(ObjectWithArbitrarySubResource); ok {
-					for _, sub := range sgs.GetArbitrarySubResources() {
-						sub := sub
-						parentGVR := obj.GetGroupVersionResource()
-						subResourceGVR := parentGVR.GroupVersion().WithResource(parentGVR.Resource + "/" + sub.SubResourceName())
-						if reflect.TypeOf(sub.New()) != reflect.TypeOf(obj) { // subResource.New() may return the parent resource at some time
-							fmt.Println("AddToScheme: arbitrary resource")
-							s.AddKnownTypes(subResourceGVR.GroupVersion(), sub.New())
-						}
+			if arb, ok := obj.(ObjectWithArbitrarySubResource); ok {
+				for _, sub := range arb.GetArbitrarySubResources() {
+					subNew := sub.New()
+					if reflect.TypeOf(subNew) != reflect.TypeOf(obj.New()) {
+						s.AddKnownTypes(obj.GetGroupVersionResource().GroupVersion(), subNew)
 					}
 				}
-			*/
+			}
+
 		}
 		return nil
 	}

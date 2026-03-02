@@ -16,6 +16,11 @@ limitations under the License.
 
 package resource
 
+import (
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apiserver/pkg/registry/rest"
+)
+
 // SubResource defines interface for registering arbitrary subresource to the parent resource.
 type SubResource interface {
 	SubResourceName() string
@@ -32,7 +37,11 @@ type StatusSubResource interface {
 // ArbitrarySubResource defines required methods for extending a new custom subresource.
 type ArbitrarySubResource interface {
 	SubResource
-	//rest.Storage
+
+	// New returns a new instance of the subresource object
+	New() runtime.Object
+	// NewStorage creates the REST storage for this subresource, given the parent storage
+	NewStorage(scheme *runtime.Scheme, parentStorage rest.Storage) (rest.Storage, error)
 }
 
 /*
