@@ -44,6 +44,13 @@ type ArbitrarySubResource interface {
 	NewStorage(scheme *runtime.Scheme, parentStorage rest.Storage) (rest.Storage, error)
 }
 
+// ArbitrarySubResourceWithOptions is for subresources that use GetterWithOptions
+type ArbitrarySubResourceWithOptions interface {
+    ArbitrarySubResource
+    // NewGetOptions returns the options object to register in the scheme
+    NewGetOptions() runtime.Object
+}
+
 /*
 // ConnectorSubResource defines required methods for implementing a connector subresource.
 type ConnectorSubResource interface {

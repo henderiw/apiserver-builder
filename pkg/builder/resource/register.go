@@ -61,6 +61,13 @@ func AddToScheme(objs ...Object) func(s *runtime.Scheme) error {
 					if reflect.TypeOf(subNew) != reflect.TypeOf(obj.New()) {
 						s.AddKnownTypes(obj.GetGroupVersionResource().GroupVersion(), subNew)
 					}
+					// Register options type if the subresource uses GetterWithOptions
+					if subWithOpts, ok := sub.(ArbitrarySubResourceWithOptions); ok {
+						opts := subWithOpts.NewGetOptions()
+						if opts != nil {
+							s.AddKnownTypes(obj.GetGroupVersionResource().GroupVersion(), opts)
+						}
+					}
 				}
 			}
 
