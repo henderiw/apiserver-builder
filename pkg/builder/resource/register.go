@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/henderiw/apiserver-builder/pkg/apiserver"
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource/resourcestrategy"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -66,6 +67,7 @@ func AddToScheme(objs ...Object) func(s *runtime.Scheme) error {
 						opts := subWithOpts.NewGetOptions()
 						if opts != nil {
 							s.AddKnownTypes(obj.GetGroupVersionResource().GroupVersion(), opts)
+							apiserver.ParameterScheme.AddKnownTypes(obj.GetGroupVersionResource().GroupVersion(), opts)
 						}
 					}
 				}
