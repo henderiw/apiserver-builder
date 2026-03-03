@@ -2,8 +2,10 @@ package resource
 
 import (
 	"fmt"
+	"net/url"
 	"reflect"
 
+	"github.com/henderiw/apiserver-builder/pkg/apiserver"
 	"github.com/henderiw/apiserver-builder/pkg/builder/resource/resourcestrategy"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -60,6 +62,33 @@ func AddToScheme(objs ...Object) func(s *runtime.Scheme) error {
 					subNew := sub.New()
 					if reflect.TypeOf(subNew) != reflect.TypeOf(obj.New()) {
 						s.AddKnownTypes(obj.GetGroupVersionResource().GroupVersion(), subNew)
+					}
+					// Register options type if the subresource uses GetterWithOptions
+					if subWithOpts, ok := sub.(ArbitrarySubResourceWithOptions); ok {
+						opts := subWithOpts.NewGetOptions()
+						if opts != nil {
+							s.AddKnownTypes(obj.GetGroupVersionResource().GroupVersion(), opts)
+							apiserver.ParameterScheme.AddKnownTypes(obj.GetGroupVersionResource().GroupVersion(), opts)
+
+							// Register url.Values → options conversion
+							if converter, ok := sub.(ArbitrarySubResourceWithOptionsConverter); ok {
+								if err := apiserver.ParameterScheme.AddConversionFunc(
+									(*url.Values)(nil),
+									opts,
+									converter.ConvertFromURLValues(),
+								); err != nil {
+									return err
+								}
+								// Register version conversion for ParameterScheme
+								if versionConverter, ok := sub.(ArbitrarySubResourceWithVersionConverter); ok {
+									for _, convFn := range versionConverter.ParameterSchemeConversions() {
+										if err := convFn(apiserver.ParameterScheme); err != nil {
+											return err
+										}
+									}
+								}
+							}
+						}
 					}
 				}
 			}

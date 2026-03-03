@@ -17,6 +17,7 @@ limitations under the License.
 package resource
 
 import (
+	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/registry/rest"
 )
@@ -42,6 +43,23 @@ type ArbitrarySubResource interface {
 	New() runtime.Object
 	// NewStorage creates the REST storage for this subresource, given the parent storage
 	NewStorage(scheme *runtime.Scheme, parentStorage rest.Storage) (rest.Storage, error)
+}
+
+// ArbitrarySubResourceWithOptions is for subresources that use GetterWithOptions
+type ArbitrarySubResourceWithOptions interface {
+	ArbitrarySubResource
+	// NewGetOptions returns the options object to register in the scheme
+	NewGetOptions() runtime.Object
+}
+
+// pkg/builder/resource/subresource_types.go
+type ArbitrarySubResourceWithOptionsConverter interface {
+	ArbitrarySubResourceWithOptions
+	ConvertFromURLValues() func(a, b interface{}, scope conversion.Scope) error
+}
+
+type ArbitrarySubResourceWithVersionConverter interface {
+	ParameterSchemeConversions() []func(*runtime.Scheme) error
 }
 
 /*
