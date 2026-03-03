@@ -67,10 +67,15 @@ func AddToScheme(objs ...Object) func(s *runtime.Scheme) error {
 					if subWithOpts, ok := sub.(ArbitrarySubResourceWithOptions); ok {
 						opts := subWithOpts.NewGetOptions()
 						if opts != nil {
-							s.AddKnownTypes(obj.GetGroupVersionResource().GroupVersion(), opts)
-							apiserver.ParameterScheme.AddKnownTypes(obj.GetGroupVersionResource().GroupVersion(), opts)
+							gv := obj.GetGroupVersionResource().GroupVersion()
+							s.AddKnownTypes(gv, opts)
+							
+							// Register in ParameterScheme under BOTH versioned and internal
+							// Using the same Go type means no conversion needed
+							apiserver.ParameterScheme.AddKnownTypes(gv, opts)
+							internalGV := schema.GroupVersion{Group: gv.Group, Version: runtime.APIVersionInternal}
+							apiserver.ParameterScheme.AddKnownTypes(internalGV, opts)
 
-							// Register url.Values → options conversion
 							if converter, ok := sub.(ArbitrarySubResourceWithOptionsConverter); ok {
 								if err := apiserver.ParameterScheme.AddConversionFunc(
 									(*url.Values)(nil),
