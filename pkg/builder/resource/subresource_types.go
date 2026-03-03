@@ -17,6 +17,7 @@ limitations under the License.
 package resource
 
 import (
+	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/registry/rest"
 )
@@ -46,9 +47,15 @@ type ArbitrarySubResource interface {
 
 // ArbitrarySubResourceWithOptions is for subresources that use GetterWithOptions
 type ArbitrarySubResourceWithOptions interface {
-    ArbitrarySubResource
-    // NewGetOptions returns the options object to register in the scheme
-    NewGetOptions() runtime.Object
+	ArbitrarySubResource
+	// NewGetOptions returns the options object to register in the scheme
+	NewGetOptions() runtime.Object
+}
+
+// pkg/builder/resource/subresource_types.go
+type ArbitrarySubResourceWithOptionsConverter interface {
+	ArbitrarySubResourceWithOptions
+	ConvertFromURLValues() func(a, b interface{}, scope conversion.Scope) error
 }
 
 /*

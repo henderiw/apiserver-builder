@@ -2,6 +2,7 @@ package resource
 
 import (
 	"fmt"
+	"net/url"
 	"reflect"
 
 	"github.com/henderiw/apiserver-builder/pkg/apiserver"
@@ -68,6 +69,17 @@ func AddToScheme(objs ...Object) func(s *runtime.Scheme) error {
 						if opts != nil {
 							s.AddKnownTypes(obj.GetGroupVersionResource().GroupVersion(), opts)
 							apiserver.ParameterScheme.AddKnownTypes(obj.GetGroupVersionResource().GroupVersion(), opts)
+
+							// Register url.Values → options conversion
+							if converter, ok := sub.(ArbitrarySubResourceWithOptionsConverter); ok {
+								if err := apiserver.ParameterScheme.AddConversionFunc(
+									(*url.Values)(nil),
+									opts,
+									converter.ConvertFromURLValues(),
+								); err != nil {
+									return err
+								}
+							}
 						}
 					}
 				}
