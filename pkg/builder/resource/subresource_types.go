@@ -58,6 +58,10 @@ type ArbitrarySubResourceWithOptionsConverter interface {
 	ConvertFromURLValues() func(a, b interface{}, scope conversion.Scope) error
 }
 
+type ArbitrarySubResourceWithVersionConverter interface {
+	ParameterSchemeConversions() []func(*runtime.Scheme) error
+}
+
 /*
 // ConnectorSubResource defines required methods for implementing a connector subresource.
 type ConnectorSubResource interface {
