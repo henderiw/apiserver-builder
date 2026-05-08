@@ -9,28 +9,34 @@ import (
 	openapinamer "k8s.io/apiserver/pkg/endpoints/openapi"
 	"k8s.io/apiserver/pkg/server"
 	scheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/klog/v2"
 	openapicommon "k8s.io/kube-openapi/pkg/common"
 	spec "k8s.io/kube-openapi/pkg/validation/spec"
 )
 
-// goImportPathToReverseDNS converts any Go import path to a stable reverse-DNS
-// component name — the same convention used by core Kubernetes types (io.k8s.*).
+// goImportPathToReverseDNS converts a Go import path to a reverse-DNS OpenAPI
+// component name — the same convention Kubernetes uses for io.k8s.* types.
 //
-//   github.com/sdcio/config-server/apis/config/v1alpha1.ConfigStatus
-//   → com.github.sdcio.config-server.apis.config.v1alpha1.ConfigStatus
+//	github.com/sdcio/config-server/apis/config/v1alpha1.TargetStatus
+//	→ com.github.sdcio.config-server.apis.config.v1alpha1.TargetStatus
 //
-//   k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta
-//   → io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+//	k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta
+//	→ io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
 //
-// The result contains no "/" or "~", so kube-openapi's EscapeJsonPointer is a no-op
-// and $ref values produced from it are always stable (no double-encoding issues).
+// The result has no "/" or "~", so kube-openapi's EscapeJsonPointer() is a
+// no-op: $ref values equal component keys exactly, enabling raw (non-decoded)
+// lookups such as those performed by structured-merge-diff/v6's TypeConverter.
 func goImportPathToReverseDNS(goPath string) string {
+	// Split at the last non-qualified segment (type name after last ".")
+	// goPath format: "pkg/path.TypeName"
 	slash := strings.Index(goPath, "/")
 	if slash == -1 {
+		// No host segment — stdlib or simple name; return as-is.
 		return goPath
 	}
 	host := goPath[:slash]
 	rest := strings.ReplaceAll(goPath[slash+1:], "/", ".")
+
 	parts := strings.Split(host, ".")
 	for i, j := 0, len(parts)-1; i < j; i, j = i+1, j-1 {
 		parts[i], parts[j] = parts[j], parts[i]
@@ -40,94 +46,94 @@ func goImportPathToReverseDNS(goPath string) string {
 
 // WithOpenAPIDefinitions registers OpenAPI definitions for the API server.
 //
-// # The two-spec problem
+// # Naming strategy
 //
-// There are two distinct OpenAPI specs in play with very different consumers:
+// structured-merge-diff/v6 TypeConverter performs a RAW (non-JSON-Pointer-
+// decoded) lookup when resolving $ref component names.  This means $ref tokens
+// and component map keys must be byte-for-byte identical.
 //
-//  1. The SERVED spec  (/openapi/v2, /openapi/v3) — consumed by kubectl's
-//     client-side validator. kube-openapi calls EscapeJsonPointer() on the
-//     output of GetDefinitionName when building $ref strings. If GetDefinitionName
-//     returns a name that already contains "~" (e.g. the namer's fallback for
-//     non-GVK types: "github.com~1sdcio~1…TargetStatus"), EscapeJsonPointer
-//     double-encodes the "~" → "~0", yielding "~01". kubectl resolves $ref
-//     tokens literally (no JSON Pointer decode) so "~01" ≠ "~1" → not found.
-//     Fix: use our getDefinitionName wrapper which converts all Go import-path
-//     keys to clean reverse-DNS names (no "~" or "/") before EscapeJsonPointer
-//     sees them.
+// kube-openapi builds $ref strings as:
 //
-//  2. The FIELD-MANAGER spec — built by buildOpenAPIModels inside the Kubernetes
-//     generic apiserver using the namer's GetDefinitionName DIRECTLY (it does not
-//     read config.OpenAPIV3Config.GetDefinitionName). For non-GVK types the namer
-//     returns the name unchanged (e.g. "github.com/…/TargetStatus"), then
-//     EscapeJsonPointer turns "/" → "~1", making $ref targets like
-//     "github.com~1sdcio~1…TargetStatus". The TypeConverter strips the
-//     "#/components/schemas/" prefix and does a direct map lookup for that string.
-//     The definitions map only has "/" keyed entries, so the lookup fails with
-//     "no type found matching: github.com~1…TargetStatus".
-//     Fix: add "~1"-encoded alias entries to mergedDefs so the field-manager's
-//     spec builder finds them when following those $refs.
+//	"#/components/schemas/" + EscapeJsonPointer(GetDefinitionName(goPath))
 //
-// With both fixes applied:
-//   - Served spec:  $ref uses clean reverse-DNS → kubectl resolves correctly.
-//   - FM spec:      $ref uses ~1 names (namer path) → alias entries are found.
+// EscapeJsonPointer converts "/" → "~1" and "~" → "~0".
+// If GetDefinitionName returns a name that already contains "~1" (old-style
+// encoding), EscapeJsonPointer double-encodes it to "~01", making $ref ≠ key.
+//
+// Fix: GetDefinitionName returns clean reverse-DNS names ("com.github.sdcio…")
+// that contain neither "/" nor "~".  EscapeJsonPointer is then a no-op, so
+// $ref == component key == what the TypeConverter looks up.  kubectl also
+// resolves these $refs correctly without any JSON Pointer decoding.
+//
+// # Alias entries
+//
+// getResourceNamesForGroup (inside GenericAPIServer.getOpenAPIModels) calls
+// GetDefinitionName on each registered Go type to get its "canonical" name,
+// then passes those names to BuildOpenAPIDefinitionsForResources, which looks
+// them up as keys in the GetDefinitions map.  Since the map is keyed by Go
+// import paths ("github.com/…/Target") but the canonical names are now
+// reverse-DNS ("com.github.sdcio…Target"), we add reverse-DNS alias entries
+// so the lookups succeed.
 func (r *Server) WithOpenAPIDefinitions(
 	name, version string,
 	defs openapicommon.GetOpenAPIDefinitions) *Server {
 
+	// STARTUP TRACE — this line in the server log confirms the new binary is running.
+	klog.Infof("apiserver-builder/WithOpenAPIDefinitions: %q %q (reverse-dns-aliases build)", name, version)
+
 	namer := openapinamer.NewDefinitionNamer(apiserver.Scheme, scheme.Scheme)
 
-	// getDefinitionName is used by the SERVED spec only.
-	// It delegates to the namer for GVK-registered types (preserving their
-	// x-kubernetes-group-version-kind extensions). For everything else the namer
-	// returns the name unchanged — which contains "/" and would trigger double-
-	// encoding via EscapeJsonPointer — so we replace the fallback with a proper
-	// reverse-DNS transformation.
+	// getDefinitionName converts any Go import path to a stable reverse-DNS name.
+	// GVK extensions (x-kubernetes-group-version-kind) are preserved so the
+	// TypeConverter can map GVK → schema name.
 	getDefinitionName := func(n string) (string, spec.Extensions) {
 		resolved, ext := namer.GetDefinitionName(n)
-		// Namer fallback returns the original name unchanged; it contains "/" for
-		// Go import paths. Reverse-DNS names never contain "/" or "~".
+		// The namer returns names unchanged; Go import paths contain "/".
+		// Old-style fallback encoding produces "~1".  Both trigger the transform.
 		if strings.ContainsAny(resolved, "/~") {
-			return goImportPathToReverseDNS(n), nil
+			return goImportPathToReverseDNS(n), ext // preserve ext (GVK annotations)
 		}
 		return resolved, ext
 	}
 
-	// mergedDefs merges apiextensions built-ins with the user's definitions and
-	// adds "~1"-encoded aliases for every "github.com/" type.  The aliases are
-	// consumed exclusively by the field-manager spec builder (which uses the namer
-	// path and therefore produces "~1"-encoded $refs as lookup keys).  The served
-	// spec builder uses getDefinitionName above and never references these aliases
-	// (its $refs are reverse-DNS), so they remain invisible to kubectl.
 	mergedDefs := func(ref openapicommon.ReferenceCallback) map[string]openapicommon.OpenAPIDefinition {
 		result := apiextensionsopenapi.GetOpenAPIDefinitions(ref)
 		for k, v := range defs(ref) {
 			result[k] = v
 		}
-		// Add ~1-encoded aliases so that the field-manager's spec builder can
-		// resolve $refs of the form "github.com~1sdcio~1…TargetStatus" back to
-		// the actual schema definition.
+
+		// Add reverse-DNS alias entries alongside the original Go-path keys so that
+		// BuildOpenAPIDefinitionsForResources can resolve canonical (reverse-DNS)
+		// names that getResourceNamesForGroup computed via GetDefinitionName.
 		aliases := make(map[string]openapicommon.OpenAPIDefinition)
 		for k, v := range result {
 			if strings.HasPrefix(k, "github.com/") {
-				aliases[strings.ReplaceAll(k, "/", "~1")] = v
+				rdns := goImportPathToReverseDNS(k)
+				if _, exists := result[rdns]; !exists {
+					aliases[rdns] = v
+				}
 			}
 		}
 		for k, v := range aliases {
 			result[k] = v
 		}
+
+		klog.V(4).Infof("mergedDefs: %d total definitions (%d reverse-DNS aliases added)", len(result), len(aliases))
 		return result
 	}
 
 	options.RecommendedConfigFns = append(options.RecommendedConfigFns, func(config *server.RecommendedConfig) *server.RecommendedConfig {
+		klog.Infof("apiserver-builder: applying OpenAPI config with reverse-DNS GetDefinitionName")
+
 		config.OpenAPIConfig = server.DefaultOpenAPIConfig(mergedDefs, namer)
 		config.OpenAPIConfig.Info.Title = name
 		config.OpenAPIConfig.Info.Version = version
-		config.OpenAPIConfig.GetDefinitionName = getDefinitionName // served v2 spec
+		config.OpenAPIConfig.GetDefinitionName = getDefinitionName
 
 		config.OpenAPIV3Config = server.DefaultOpenAPIV3Config(mergedDefs, namer)
 		config.OpenAPIV3Config.Info.Title = name
 		config.OpenAPIV3Config.Info.Version = version
-		config.OpenAPIV3Config.GetDefinitionName = getDefinitionName // served v3 spec
+		config.OpenAPIV3Config.GetDefinitionName = getDefinitionName
 
 		return config
 	})
