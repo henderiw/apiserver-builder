@@ -2,6 +2,7 @@ package builder
 
 import (
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/henderiw/apiserver-builder/pkg/apiserver"
@@ -82,7 +83,10 @@ func (r *Server) WithOpenAPIDefinitions(
 	}
 
 	getDefinitionName := func(n string) (string, spec.Extensions) {
-		defName := openapiutil.ToRESTFriendlyName(n)
+		defName := n
+		if strings.Contains(n, "/") { // Go import path -> reverse-DNS; already-friendly names pass through unchanged
+			defName = openapiutil.ToRESTFriendlyName(n)
+		}
 		if gvks, ok := getGVKs()[n]; ok {
 			return defName, spec.Extensions{extensionGVK: gvks}
 		}
