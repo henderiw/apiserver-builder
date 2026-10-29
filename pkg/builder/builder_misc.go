@@ -1,53 +1,73 @@
 package builder
 
 import (
-	"strings"
+	"sort"
 	"sync"
 
 	"github.com/henderiw/apiserver-builder/pkg/apiserver"
 	"github.com/henderiw/apiserver-builder/pkg/cmd/apiserverbuilder/options"
 	apiextensionsopenapi "k8s.io/apiextensions-apiserver/pkg/generated/openapi"
+	"k8s.io/apimachinery/pkg/runtime"
 	openapinamer "k8s.io/apiserver/pkg/endpoints/openapi"
 	"k8s.io/apiserver/pkg/server"
-	scheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
 	openapicommon "k8s.io/kube-openapi/pkg/common"
 	openapiutil "k8s.io/kube-openapi/pkg/util"
 	spec "k8s.io/kube-openapi/pkg/validation/spec"
 )
 
+const extensionGVK = "x-kubernetes-group-version-kind"
+
 func (r *Server) WithOpenAPIDefinitions(
 	name, version string,
 	defs openapicommon.GetOpenAPIDefinitions) *Server {
 
-	// Lazily build the namer on first use. NewDefinitionNamer snapshots the
-	// scheme, so it must run after all resources are registered. First use is
-	// when the API groups are installed / the spec is built, which is late enough.
+	// Go type path -> GVK extension, built lazily from apiserver.Scheme
+	// (after all resources are registered).
 	var (
-		once  sync.Once
-		namer *openapinamer.DefinitionNamer
+		once     sync.Once
+		gvkByTyp map[string][]interface{}
 	)
-	getNamer := func() *openapinamer.DefinitionNamer {
+	getGVKs := func() map[string][]interface{} {
 		once.Do(func() {
+			type gvkEntry struct{ g, v, k string }
+			tmp := map[string][]gvkEntry{}
 			for gvk, t := range apiserver.Scheme.AllKnownTypes() {
-				if gvk.Group == "config.sdcio.dev" || gvk.Group == "inv.sdcio.dev" {
-					klog.Infof("scheme: %s -> %s.%s", gvk.String(), t.PkgPath(), t.Name())
+				if gvk.Version == runtime.APIVersionInternal {
+					continue
 				}
+				key := t.PkgPath() + "." + t.Name()
+				tmp[key] = append(tmp[key], gvkEntry{gvk.Group, gvk.Version, gvk.Kind})
 			}
-			namer = openapinamer.NewDefinitionNamer(apiserver.Scheme, scheme.Scheme)
-			_, ext := namer.GetDefinitionName("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSet")
-			klog.Infof("openapi namer built: %d known types, ConfigSet GVK ext=%v",
-				len(apiserver.Scheme.AllKnownTypes()), ext)
+			gvkByTyp = make(map[string][]interface{}, len(tmp))
+			for key, entries := range tmp {
+				sort.Slice(entries, func(i, j int) bool {
+					if entries[i].g != entries[j].g {
+						return entries[i].g < entries[j].g
+					}
+					if entries[i].v != entries[j].v {
+						return entries[i].v < entries[j].v
+					}
+					return entries[i].k < entries[j].k
+				})
+				list := make([]interface{}, 0, len(entries))
+				for _, e := range entries {
+					list = append(list, map[string]interface{}{"group": e.g, "version": e.v, "kind": e.k})
+				}
+				gvkByTyp[key] = list
+			}
+			klog.Infof("openapi GVK map built: %d types, ConfigSet=%v",
+				len(gvkByTyp), gvkByTyp["github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSet"])
 		})
-		return namer
+		return gvkByTyp
 	}
 
 	getDefinitionName := func(n string) (string, spec.Extensions) {
-		defName, ext := getNamer().GetDefinitionName(n)
-		if strings.ContainsAny(defName, "/~") {
-			defName = openapiutil.ToRESTFriendlyName(n)
+		defName := openapiutil.ToRESTFriendlyName(n)
+		if gvks, ok := getGVKs()[n]; ok {
+			return defName, spec.Extensions{extensionGVK: gvks}
 		}
-		return defName, ext
+		return defName, nil
 	}
 
 	makeGetDefinitions := func(refPrefix string) openapicommon.GetOpenAPIDefinitions {
@@ -74,9 +94,7 @@ func (r *Server) WithOpenAPIDefinitions(
 	}
 
 	options.RecommendedConfigFns = append(options.RecommendedConfigFns, func(config *server.RecommendedConfig) *server.RecommendedConfig {
-		// DefaultOpenAPI*Config wants a namer for its default; we override
-		// GetDefinitionName right after, so pass a placeholder built from an
-		// empty scheme set — it is never used.
+		// DefaultOpenAPI*Config needs a namer; we override GetDefinitionName right after.
 		placeholder := openapinamer.NewDefinitionNamer()
 
 		config.OpenAPIConfig = server.DefaultOpenAPIConfig(makeGetDefinitions("#/definitions/"), placeholder)
