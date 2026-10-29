@@ -29,6 +29,11 @@ func (r *Server) WithOpenAPIDefinitions(
 	)
 	getNamer := func() *openapinamer.DefinitionNamer {
 		once.Do(func() {
+			for gvk, t := range apiserver.Scheme.AllKnownTypes() {
+				if gvk.Group == "config.sdcio.dev" || gvk.Group == "inv.sdcio.dev" {
+					klog.Infof("scheme: %s -> %s.%s", gvk.String(), t.PkgPath(), t.Name())
+				}
+			}
 			namer = openapinamer.NewDefinitionNamer(apiserver.Scheme, scheme.Scheme)
 			_, ext := namer.GetDefinitionName("github.com/sdcio/config-server/apis/config/v1alpha1.ConfigSet")
 			klog.Infof("openapi namer built: %d known types, ConfigSet GVK ext=%v",
